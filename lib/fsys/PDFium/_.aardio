@@ -1,0 +1,128 @@
+﻿namespace fsys
+import util.metaProperty
+class PDFium{
+	ctor( pdfPath,password="" ){
+		this.LIBRARY_CONFIG = {
+			int version = 2;
+			pointer m_pUserFontPaths = 0;
+			pointer m_pIsolate = 0;
+			INT m_v8EmbedderSlot = 0;
+			pointer m_pPlatform = 0;
+		}
+		dll.FPDF_InitLibraryWithConfig(topointer(this.LIBRARY_CONFIG))
+		this.doc = dll.FPDF_LoadDocumentP(pdfPath,password)
+		//..console.log("h",this.handle)
+		..table.gc(this,"destroy")
+		this.pageNum = 0
+	};
+	//载入某一页
+	loadPage = function(idx=0){
+		if(this.page){
+			dll.FPDF_ClosePage(this.page);
+			this.page = null
+		}
+		this.page = dll.FPDF_LoadPage(this.doc,idx)
+	}
+	//结构化输出 todo
+	
+	//获取pdf meta信息,属性表
+	getMeta = function(){
+		var meta = {
+			Title = "";
+			Author = "";
+			Subject = "";
+			Keywords = "";
+			Creator = "";
+			Producer = "";
+			CreationDate = "";
+			ModDate = "";
+		}
+		
+		for(k,v in meta){
+			var len = dll.FPDF_GetMetaText(this.doc,k,null,null)
+			var buffer = ..raw.buffer(len)
+			len = dll.FPDF_GetMetaText(this.doc,k,buffer,len)
+			meta[k] = ..string.fromUnicode( buffer )
+			buffer = null
+		}
+		return meta
+	}
+	//解析成文本
+	extractText = function(){
+		var textPage = dll.FPDFText_LoadPageP(this.page);
+		var textCountChars = dll.FPDFText_CountChars(textPage);
+		var buffer = ..raw.buffer( textCountChars*2 )
+		var num = dll.FPDFText_GetText(textPage,0,textCountChars,buffer)
+		return ..string.fromUnicode( buffer )
+	}
+	
+	//目录相关
+	getFirstBookmarkChild = function(){
+		var bookMark = dll.FPDFBookmark_GetFirstChildP(this.doc,0)
+		var len = dll.FPDFBookmark_GetTitle(bookMark,0,0)
+		var buffer = ..raw.buffer( len*2 ) // ?
+		len = dll.FPDFBookmark_GetTitle(bookMark,buffer,len)
+		return ..string.fromUnicode(buffer); 		
+	}
+	
+	//获取目录树
+	getBookmarks = function(){
+		var tree = {}
+		var bookMark = dll.FPDFBookmark_GetFirstChildP(this.doc,null)
+		var len = dll.FPDFBookmark_GetTitle(bookMark,null,0)
+		var buffer = ..raw.buffer( len*2 ) // ?
+		len = dll.FPDFBookmark_GetTitle(bookMark,buffer,len)
+		var title = ..string.fromUnicode(buffer);
+		while(dll.FPDFBookmark_GetNextSibling){
+		
+		}
+		
+	}
+	
+	getBookmarkTitle = function(){
+		var buffer = ..raw.buffer(4096)
+		var len = dll.FPDFBookmark_GetTitle(this.doc,buffer,4096) //?
+		return len; 
+	}
+	
+	findBookMark = function(){
+		return dll.FPDFBookmark_FindP(this.doc,"")
+	}
+	
+	destroy = function(){
+		dll.FPDF_CloseDocument(this.doc)
+		dll.FPDF_DestroyLibrary()
+	}
+	@_metaProperty;
+	
+}
+
+namespace PDFium{
+	dll = ..raw.loadDll( "~\lib\fsys\PDFium\.dll\pdfium.dll",,"cdecl" )
+	//PDFium.dll = dll
+	_metaProperty = ..util.metaProperty(
+		pageCount = {
+			_get = function(){ 
+				return dll.FPDF_GetPageCount(owner.doc)
+			}	
+		};
+		pageWidth = {
+			_get = function(){
+				if(!owner.page) owner.loadPage()
+				return dll.FPDF_GetPageWidthF(owner.page); 
+			}
+		}
+		//FPDF_RenderPageBitmap
+		
+		pageHeight = {
+			_get = function(){
+				if(!owner.page) owner.loadPage()
+				return dll.FPDF_GetPageHeightF(owner.page); 
+			}
+			
+		}
+		
+	)
+}
+
+
