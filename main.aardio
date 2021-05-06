@@ -2,44 +2,31 @@ import win.ui;
 /*DSG{{*/
 mainForm = win.form(text="pdfDemo";right=1050;bottom=620)
 mainForm.add(
-button={cls="button";text="上一页";left=918;top=486;right=1032;bottom=518;z=2};
-button2={cls="button";text="下一页";left=922;top=539;right=1036;bottom=571;z=3};
-richedit={cls="richedit";left=178;top=11;right=873;bottom=613;edge=1;hscroll=1;multiline=1;vscroll=1;z=1};
-richedit2={cls="richedit";text="RichEdit";left=878;top=10;right=1043;bottom=472;edge=1;hscroll=1;multiline=1;vscroll=1;z=4};
-treeview={cls="treeview";left=18;top=26;right=162;bottom=553;asel=false;bgcolor=16777215;edge=1;z=5}
+richedit2={cls="richedit";text="RichEdit";left=878;top=10;right=1043;bottom=472;edge=1;hscroll=1;multiline=1;vscroll=1;z=1};
+static={cls="static";text="Static";left=177;top=14;right=861;bottom=582;transparent=1;z=3};
+static2={cls="static";text="目录";left=21;top=9;right=166;bottom=31;transparent=1;z=4};
+treeview={cls="treeview";left=18;top=37;right=162;bottom=553;asel=false;bgcolor=16777215;edge=1;z=2}
 )
 /*}}*/
 
 import fsys.PDFium
 import fsys.PDFium.view;
-reader = fsys.PDFium("D:\books\d2l-zh.pdf")
+import web.view
+
+wb = web.view(mainForm.static);
+
+var pdfPath = io.fullpath("FoxitPDF_SDK20_Guide.pdf")
+wb.go(pdfPath)
+reader = fsys.PDFium(pdfPath)
+
+//获取pdf属性表
 var meta = reader.getMeta();
 mainForm.richedit2.text = '属性表:\n' + table.tostring(meta) + '\n'
-reader.loadPage(0);
 
-view = fsys.PDFium.view(reader,mainForm.richedit.hwnd)
-mainForm.button.oncommand = function(id,event){
-	mainForm.richedit.redraw()
-	reader.pageNum -= 1
-	reader.loadPage(reader.pageNum)
-	view.renderPage()
-}
+//加载目录
+var bm = reader.extractBookmarks()
+mainForm.treeview.insertItem( bm.asTree() )
 
-mainForm.button2.oncommand = function(id,event){
-	//var re = reader.getMetaText()
-/*
-	var re = reader.extractText()
-	console.log(re)
-	reader.getFirstBookmarkChild()
-*/
-	mainForm.richedit.redraw()
-	reader.pageNum += 1
-	reader.loadPage(reader.pageNum)
-	view.renderPage()
-	
-
-}
-
-//pdf合并工具
+//pdf合并工具 todo
 mainForm.show();
 return win.loopMessage();

@@ -7,11 +7,12 @@
 
 
 
-
+dll下载地址:https://github.com/xuncv/PDFium-aardio/releases/download/0.0.1/pdfium.dll
 
 依赖项目:
 
-[pdfium - Git at Google (googlesource.com)](https://pdfium.googlesource.com/pdfium/)
+1. [pdfium - Git at Google (googlesource.com)](https://pdfium.googlesource.com/pdfium/)
+2. [bblanchon/pdfium-binaries: 📰 Binary distribution of PDFium (github.com)](https://github.com/bblanchon/pdfium-binaries) (pdfium去掉v8核心的预编译动态库)
 
-[bblanchon/pdfium-binaries: 📰 Binary distribution of PDFium (github.com)](https://github.com/bblanchon/pdfium-binaries) (pdfium去掉v8核心的预编译动态库)
+![](screenshot.png)
 
