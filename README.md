@@ -3,7 +3,7 @@
 
 
 
-经过我的实际使用经验来看,PDFium解析PDF的完整度要好于python的著名项目`pdfminer ` ,尤其是解析带签名的合同制式时,pdfminer经常丢失内容.PDFium暂时没发现有此类问题.
+经过我的实际使用经验来看,PDFium解析PDF的完整度要好于python的著名项目`pdfminer ` ,尤其是解析带签名的合同制式时,pdfminer经常丢失内容.PDFium暂时没发现有此类问题,且对中文支持友好.
 
 
 

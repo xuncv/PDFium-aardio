@@ -13,16 +13,15 @@ class PDFium{
 		}
 		dll.FPDF_InitLibraryWithConfig(topointer(this.LIBRARY_CONFIG))
 		this.doc = dll.FPDF_LoadDocumentP(pdfPath,password)
-		..table.gc(this,"destroy")
-		this.pageNum = 0	
+		..table.gc(this,"destroy")	
 	};
-	//载入某一页
+	
 	loadPage = function(idx=0){
-		if(this.page){
-			dll.FPDF_ClosePage(this.page);
-			this.page = null
+		if(this.currentPage){
+			dll.FPDF_ClosePage(this.currentPage);
+			this.currentPage = null
 		}
-		this.page = dll.FPDF_LoadPage(this.doc,idx)
+		this.currentPage = dll.FPDF_LoadPage(this.doc,idx)
 	}
 	
 	extractBookmarks = function(){
@@ -45,9 +44,9 @@ class PDFium{
 		}
 		return meta
 	}
-	//提取文本
+	
 	extractText = function(){
-		var textPage = dll.FPDFText_LoadPageP(this.page);
+		var textPage = dll.FPDFText_LoadPageP(this.currentPage);
 		var textCountChars = dll.FPDFText_CountChars(textPage);
 		var buffer = ..raw.buffer( textCountChars*2 )
 		var num = dll.FPDFText_GetText(textPage,0,textCountChars,buffer)
@@ -67,7 +66,6 @@ namespace PDFium{
 		ctor( doc,handle ){
 			this.doc = doc;
 			this.handle = handle;
-			this.treeBookmarks = {};
 		};
 
 		asTree = function(){
@@ -90,7 +88,7 @@ namespace PDFium{
 		};
 		
 		@_bmMeta;
-	}	
+	}
 	_metaProperty = ..util.metaProperty(
 		pageCount = {
 			_get = function(){ 
@@ -148,3 +146,17 @@ namespace PDFium.bookmark{
     	}
 	)	
 }
+
+
+/**intellisense()
+fsys.PDFium = 基于Google开源的PDFium库,封装的pdf解析库
+fsys.PDFium() = !PDFium.
+fsys.PDFium(.(pdf路径或pdf数据,pdf密码) = 创建pdf解析对象
+end intellisense**/
+
+/**intellisense(!PDFium)
+loadPage(.(页码) = 载入某一页
+extractBookmarks() = 提取目录,返回bookmark对象
+getMeta() = 获取pdf属性表
+extractText() = 提取当前页文本
+end intellisense**/
