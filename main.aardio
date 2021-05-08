@@ -3,7 +3,8 @@ import win.ui;
 mainForm = win.form(text="pdfDemo";right=1050;bottom=620)
 mainForm.add(
 button={cls="button";text="提取文本";left=906;top=349;right=1014;bottom=381;z=9};
-edit={cls="edit";left=936;top=310;right=979;bottom=329;edge=1;z=6};
+button2={cls="button";text="转为图像";left=912;top=403;right=1016;bottom=435;z=10};
+edit={cls="edit";text="1";left=936;top=310;right=979;bottom=329;edge=1;z=6};
 edit2={cls="edit";text="Edit";left=950;top=206;right=951;bottom=207;edge=1;z=5};
 richedit2={cls="richedit";text="RichEdit";left=878;top=10;right=1043;bottom=267;edge=1;hscroll=1;multiline=1;vscroll=1;z=1};
 static={cls="static";text="Static";left=177;top=14;right=861;bottom=582;transparent=1;z=3};
@@ -52,12 +53,20 @@ mainForm.edit.setPadding(2,18);//设置文本框内边距
 
 //pdf合并工具 todo
 mainForm.button.oncommand = function(id,event){
-	reader.loadPage( tonumber( mainForm.edit.spin.pos )-1 )
-	var text = reader.extractText();
-	
+	var pageNum = ( tonumber( mainForm.edit.text) -1 )
+	var text = reader.extractText(pageNum);
 	var frmText = mainForm.loadForm("\dlg\frmText.aardio");
 	frmText.richedit.text = text
 	frmText.show();
+}
+
+mainForm.button2.oncommand = function(id,event){
+    var pageNum = ( tonumber( mainForm.edit.text) -1 )
+	var bitmap = reader.asBitmap(pageNum)
+	bitmap.save("./out.jpg",100)
+	
+	import process
+	process.exploreSelect("out.jpg")
 }
 
 mainForm.show();

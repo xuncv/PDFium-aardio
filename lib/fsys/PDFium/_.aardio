@@ -1,7 +1,7 @@
 ﻿namespace fsys
 import console
 import util.metaProperty;
-
+import gdip
 class PDFium{
 	ctor( pdfPath,password="" ){
 		this.LIBRARY_CONFIG = {
@@ -21,7 +21,7 @@ class PDFium{
 			dll.FPDF_ClosePage(this.currentPage);
 			this.currentPage = null
 		}
-		this.currentPage = dll.FPDF_LoadPage(this.doc,idx)
+		this.currentPage = dll.FPDF_LoadPageP(this.doc,idx)
 	}
 	
 	extractBookmarks = function(){
@@ -45,12 +45,33 @@ class PDFium{
 		return meta
 	}
 	
-	extractText = function(){
+	extractText = function(pageNum=0){
+		if(pageNum<0 || pageNum>owner.pageCount){
+			assert(false,"页码超过pdf范围")
+		}
+		this.loadPage(pageNum);
 		var textPage = dll.FPDFText_LoadPageP(this.currentPage);
 		var textCountChars = dll.FPDFText_CountChars(textPage);
 		var buffer = ..raw.buffer( textCountChars*2 )
 		var num = dll.FPDFText_GetText(textPage,0,textCountChars,buffer)
 		return ..string.fromUnicode( buffer )
+	}
+	
+	// #define FPDFBitmap_BGR 2
+	asBitmap = function(pageNum){
+		if(pageNum<0 || pageNum>owner.pageCount){
+			assert(false,"页码超过pdf范围")
+		}
+		this.loadPage(pageNum);
+		//var bit = dll.FPDFBitmap_CreateExP( owner.pageWidth,owner.pageHeight,2,null,null )
+		var bit = dll.FPDFBitmap_CreateP( owner.pageWidth,owner.pageHeight,0 )
+		dll.FPDFBitmap_FillRect(bit,0,0,owner.pageWidth,owner.pageHeight,0xFFFFFFFF);
+		dll.FPDF_RenderPageBitmap(bit,this.currentPage,0,0,owner.pageWidth,owner.pageHeight,0,0x02 | 0x01);
+		var buffer = dll.FPDFBitmap_GetBufferP(bit);
+		var stride = dll.FPDFBitmap_GetStride(bit)
+		var bitmap,err = ..gdip.bitmap( owner.pageWidth,owner.pageHeight,0x26200A/*_PixelFormat32bppARGB*/,buffer,stride )
+		if(!bitmap) dll.FPDFBitmap_Destroy(bit)
+		return bitmap,err; 
 	}
 	
 	destroy = function(){
@@ -61,7 +82,7 @@ class PDFium{
 }
 
 namespace PDFium{
-	dll = ..raw.loadDll( "~\lib\fsys\PDFium\.dll\pdfium.dll",,"cdecl" )
+	dll = ..raw.loadDll( $"~\lib\fsys\PDFium\.dll\pdfium.dll",,"cdecl" )
 	class bookmark{
 		ctor( doc,handle ){
 			this.doc = doc;
@@ -93,19 +114,19 @@ namespace PDFium{
 		pageCount = {
 			_get = function(){ 
 				return dll.FPDF_GetPageCount(owner.doc)
-			}	
+			}	 
 		};
 		pageWidth = {
 			_get = function(){
-				if(!owner.page) owner.loadPage()
-				return dll.FPDF_GetPageWidthF(owner.page); 
+				if(!owner.currentPage) owner.loadPage()
+				return ..math.round( dll.FPDF_GetPageWidthF(owner.currentPage) ); 
 			}
 		}
-		//FPDF_RenderPageBitmap
+
 		pageHeight = {
 			_get = function(){
-				if(!owner.page) owner.loadPage()
-				return dll.FPDF_GetPageHeightF(owner.page); 
+				if(!owner.currentPage) owner.loadPage()
+				return ..math.round( dll.FPDF_GetPageHeightF(owner.currentPage) ); 
 			}
 		}
 	)
@@ -158,5 +179,14 @@ end intellisense**/
 loadPage(.(页码) = 载入某一页
 extractBookmarks() = 提取目录,返回bookmark对象
 getMeta() = 获取pdf属性表
-extractText() = 提取当前页文本
+extractText(.(页码) = 提取当前页文本
+asBitmap(.(页码) = 当前页转换为bitmap对象
+end intellisense**/
+
+ /**intellisense()
+_FPDFBitmap_Unknown=@0/*_FPDFBitmap_Unknown*/
+_FPDFBitmap_Gray=@1/*_FPDFBitmap_Gray*/
+_FPDFBitmap_BGR=@2/*_FPDFBitmap_BGR*/
+_FPDFBitmap_BGRx=@3/*_FPDFBitmap_BGRx*/
+_FPDFBitmap_BGRA=@4/*_FPDFBitmap_BGRA*/
 end intellisense**/
