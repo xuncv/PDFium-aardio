@@ -75,7 +75,6 @@ mainForm.button3.oncommand = function(id,event){
     for left,top,right,bottom,text in reader.eachTextRect(){
     	console.log(left,top,right,bottom,text)
     }
-    console.pause()
 }
 
 mainForm.show();

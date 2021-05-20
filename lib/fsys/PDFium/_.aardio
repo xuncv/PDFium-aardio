@@ -37,7 +37,7 @@ class PDFium{
 			var buffer = ..raw.buffer(len*2);
 			len = FPDFText_GetBoundedText(textPage,left,top,right,bottom,buffer,len);
 			rectIndex++
-			if rectIndex >= rectCount return null; 
+			if rectIndex > rectCount return null; 
 			return round(left),round(top),round(right),round(bottom),..string.fromUnicode( buffer ); 
 		}; 	
 	}

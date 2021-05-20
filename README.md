@@ -9,9 +9,43 @@
 
 dll下载地址:https://github.com/xuncv/PDFium-aardio/releases/download/0.0.1/pdfium.dll
 
+#### examples:
+
+//载入pdf
+
+```
+reader = fsys.PDFium("test.pdf")
+```
+
+//提取树形目录
+
+```
+var bm = reader.extractBookmarks()
+
+treeData = bm.asTree()
+```
 
 
-依赖项目:
+
+//提取某页文本
+
+```
+reader.pageNum = 8; //设置页码
+
+var text = reader.extractText();`
+```
+
+
+
+// 遍历某页文本块,带坐标数据
+
+    import console
+    reader.pageNum = 8; //设置页码
+    for left,top,right,bottom,text in reader.eachTextRect(){
+    	console.log(left,top,right,bottom,text)
+    }
+
+#### 依赖项目:
 
 1. [pdfium - Git at Google (googlesource.com)](https://pdfium.googlesource.com/pdfium/)
 2. [bblanchon/pdfium-binaries: 📰 Binary distribution of PDFium (github.com)](https://github.com/bblanchon/pdfium-binaries) (pdfium去掉v8核心的预编译动态库)
