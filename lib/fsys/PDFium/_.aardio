@@ -1,5 +1,4 @@
 ﻿namespace fsys
-import console
 import util.metaProperty;
 import gdip
 class PDFium{
@@ -12,26 +11,37 @@ class PDFium{
 			pointer m_pPlatform = 0;
 		}
 		dll.FPDF_InitLibraryWithConfig(topointer(this.LIBRARY_CONFIG))
+		if (type.isString(pdfPath) and #pdfPath <= 0x410/*_MAX_PATH_U8*/){
+			this.doc = dll.FPDF_LoadMemDocumentP(pdfPath,#pdfPath,password)
+		}
+		var round = ..math.round
 		this.doc = dll.FPDF_LoadDocumentP(pdfPath,password)
-		..table.gc(this,"destroy")	
+		this.currentPageHandle = 0;
+		..table.gc(this,"destroy");
 	};
 	
-	loadPage = function(idx=0){
-		if(this.currentPage){
-			dll.FPDF_ClosePage(this.currentPage);
-			this.currentPage = null
-		}
-		this.currentPage = dll.FPDF_LoadPageP(this.doc,idx)
-	}
-	
 	extractBookmarks = function(){
-		var h = 0
-		var bookmarks = self.bookmark(this.doc,h);
+		var bookmarks = self.bookmark(this.doc,0);
 		return bookmarks
 	}
 	
-	//结构化输出 todo
-	
+	eachTextRect = function(){
+		var textPage = dll.FPDFText_LoadPageP(this.currentPage);
+		var textCountChars = dll.FPDFText_CountChars(textPage);
+		var rectCount = dll.FPDFText_CountRects(textPage,0,textCountChars)
+		var rectIndex = 0;
+		return function(){
+			var err,left,top,right,bottom = FPDFText_GetRect(textPage,rectIndex,0,0,0,0)
+			//getBoundedText
+			var len = FPDFText_GetBoundedText(textPage,left,top,right,bottom,null,0)
+			var buffer = ..raw.buffer(len*2);
+			len = FPDFText_GetBoundedText(textPage,left,top,right,bottom,buffer,len);
+			rectIndex++
+			if rectIndex >= rectCount return null; 
+			return round(left),round(top),round(right),round(bottom),..string.fromUnicode( buffer ); 
+		}; 	
+	}
+
 	getMeta = function(){
 		var keys = {"Title";"Author";"Subject";"Keywords";"Creator";"Producer";"CreationDate";"ModDate"}
 		var meta = {}
@@ -49,7 +59,6 @@ class PDFium{
 		if(pageNum<0 || pageNum>owner.pageCount){
 			assert(false,"页码超过pdf范围")
 		}
-		this.loadPage(pageNum);
 		var textPage = dll.FPDFText_LoadPageP(this.currentPage);
 		var textCountChars = dll.FPDFText_CountChars(textPage);
 		var buffer = ..raw.buffer( textCountChars*2 )
@@ -58,11 +67,10 @@ class PDFium{
 	}
 	
 	// #define FPDFBitmap_BGR 2
-	asBitmap = function(pageNum){
-		if(pageNum<0 || pageNum>owner.pageCount){
+	asBitmap = function(){
+		if(owner.pageNum<0 || owner.pageNum>owner.pageCount){
 			assert(false,"页码超过pdf范围")
 		}
-		this.loadPage(pageNum);
 		//var bit = dll.FPDFBitmap_CreateExP( owner.pageWidth,owner.pageHeight,2,null,null )
 		var bit = dll.FPDFBitmap_CreateP( owner.pageWidth,owner.pageHeight,0 )
 		dll.FPDFBitmap_FillRect(bit,0,0,owner.pageWidth,owner.pageHeight,0xFFFFFFFF);
@@ -75,6 +83,10 @@ class PDFium{
 	}
 	
 	destroy = function(){
+		if(this.currentPage){
+			dll.FPDF_ClosePage(this.currentPage);
+			this.currentPage = null
+		}
 		dll.FPDF_CloseDocument(this.doc)
 		dll.FPDF_DestroyLibrary()
 	}
@@ -83,6 +95,8 @@ class PDFium{
 
 namespace PDFium{
 	dll = ..raw.loadDll( $"~\lib\fsys\PDFium\.dll\pdfium.dll",,"cdecl" )
+	FPDFText_GetRect= dll.api("FPDFText_GetRect","bool(pointer text_page,int rect_index,double& left,double& top,double& right,double& bottom)");
+	FPDFText_GetBoundedText= dll.api("FPDFText_GetBoundedText","int(pointer text_page,double left,double top,double right,double bottom,pointer buffer,int buflen)");
 	class bookmark{
 		ctor( doc,handle ){
 			this.doc = doc;
@@ -122,11 +136,22 @@ namespace PDFium{
 				return ..math.round( dll.FPDF_GetPageWidthF(owner.currentPage) ); 
 			}
 		}
-
 		pageHeight = {
 			_get = function(){
 				if(!owner.currentPage) owner.loadPage()
 				return ..math.round( dll.FPDF_GetPageHeightF(owner.currentPage) ); 
+			}
+		}
+		pageNum = {
+			_get = function(){
+				return owner[["pageNum"]] : 0
+			}
+			_set = function(value){
+				if(owner.currentPage){
+					dll.FPDF_ClosePage(owner.currentPage);
+					owner.currentPage = null
+				}
+    			owner.currentPage = dll.FPDF_LoadPageP(owner.doc,value)	
 			}
 		}
 	)
@@ -163,7 +188,7 @@ namespace PDFium.bookmark{
 				var dst = dll.FPDFBookmark_GetDestP(owner.doc,owner.handle)
 				var pageIndex = dll.FPDFDest_GetDestPageIndex(owner.doc,dst)
 				return pageIndex; 	
-    		}	   	
+    		}		
     	}
 	)	
 }
@@ -176,11 +201,15 @@ fsys.PDFium(.(pdf路径或pdf数据,pdf密码) = 创建pdf解析对象
 end intellisense**/
 
 /**intellisense(!PDFium)
-loadPage(.(页码) = 载入某一页
+pageNum = 读取或设置当前活动页码
 extractBookmarks() = 提取目录,返回bookmark对象
 getMeta() = 获取pdf属性表
-extractText(.(页码) = 提取当前页文本
-asBitmap(.(页码) = 当前页转换为bitmap对象
+extractText() = 提取当前页文本
+asBitmap() = 当前页转换为bitmap对象
+eachTextRect() = 遍历当前页文本块
+eachTextRect() = @for left,top,right,bottom,text in ??.eachTextRect(){
+	
+}
 end intellisense**/
 
  /**intellisense()

@@ -2,8 +2,9 @@ import win.ui;
 /*DSG{{*/
 mainForm = win.form(text="pdfDemo";right=1050;bottom=620)
 mainForm.add(
-button={cls="button";text="提取文本";left=906;top=349;right=1014;bottom=381;z=9};
-button2={cls="button";text="转为图像";left=912;top=403;right=1016;bottom=435;z=10};
+button={cls="button";text="提取文本";left=916;top=349;right=1014;bottom=381;z=9};
+button2={cls="button";text="转为图像";left=916;top=403;right=1014;bottom=435;z=10};
+button3={cls="button";text="遍历文本分块";left=916;top=458;right=1014;bottom=490;z=11};
 edit={cls="edit";text="1";left=936;top=310;right=979;bottom=329;edge=1;z=6};
 edit2={cls="edit";text="Edit";left=950;top=206;right=951;bottom=207;edge=1;z=5};
 richedit2={cls="richedit";text="RichEdit";left=878;top=10;right=1043;bottom=267;edge=1;hscroll=1;multiline=1;vscroll=1;z=1};
@@ -53,20 +54,28 @@ mainForm.edit.setPadding(2,18);//设置文本框内边距
 
 //pdf合并工具 todo
 mainForm.button.oncommand = function(id,event){
-	var pageNum = ( tonumber( mainForm.edit.text) -1 )
-	var text = reader.extractText(pageNum);
+	reader.pageNum = ( tonumber( mainForm.edit.text) -1 )
+	var text = reader.extractText();
 	var frmText = mainForm.loadForm("\dlg\frmText.aardio");
 	frmText.richedit.text = text
 	frmText.show();
 }
 
 mainForm.button2.oncommand = function(id,event){
-    var pageNum = ( tonumber( mainForm.edit.text) -1 )
-	var bitmap = reader.asBitmap(pageNum)
+    reader.pageNum = ( tonumber( mainForm.edit.text) -1 )
+	var bitmap = reader.asBitmap()
 	bitmap.save("./out.jpg",100)
-	
 	import process
 	process.exploreSelect("out.jpg")
+}
+
+mainForm.button3.oncommand = function(id,event){
+    import console
+    reader.pageNum = ( tonumber( mainForm.edit.text) -1 );
+    for left,top,right,bottom,text in reader.eachTextRect(){
+    	console.log(left,top,right,bottom,text)
+    }
+    console.pause()
 }
 
 mainForm.show();
