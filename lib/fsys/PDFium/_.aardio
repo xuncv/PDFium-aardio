@@ -11,11 +11,14 @@ class PDFium{
 			pointer m_pPlatform = 0;
 		}
 		dll.FPDF_InitLibraryWithConfig(topointer(this.LIBRARY_CONFIG))
-		if (type.isString(pdfPath) and #pdfPath <= 0x410/*_MAX_PATH_U8*/){
+		if (type.isString(pdfPath) and #pdfPath > 0x410/*_MAX_PATH_U8*/){
 			this.doc = dll.FPDF_LoadMemDocumentP(pdfPath,#pdfPath,password)
+		}else {
+			pdfPath = ..string.fromto(pdfPath)
+			this.doc = dll.FPDF_LoadDocumentP(pdfPath,password)
 		}
 		var round = ..math.round
-		this.doc = dll.FPDF_LoadDocumentP(pdfPath,password)
+		
 		this.currentPageHandle = 0;
 		..table.gc(this,"destroy");
 	};

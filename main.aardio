@@ -17,7 +17,6 @@ treeview={cls="treeview";left=18;top=37;right=162;bottom=553;asel=false;bgcolor=
 /*}}*/
 
 import fsys.PDFium
-import fsys.PDFium.view;
 import web.view
 
 wb = web.view(mainForm.static);
