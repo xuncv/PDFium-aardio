@@ -1,22 +1,24 @@
 ﻿namespace fsys
 import util.metaProperty;
 import gdip
+
 class PDFium{
 	ctor( pdfPath,password="" ){
 		this.LIBRARY_CONFIG = {
 			int version = 2;
-			pointer m_pUserFontPaths = 0;
-			pointer m_pIsolate = 0;
+			pointer m_pUserFontPaths = topointer(0);
+			pointer m_pIsolate = topointer(0);
 			INT m_v8EmbedderSlot = 0;
-			pointer m_pPlatform = 0;
+			pointer m_pPlatform = topointer(0);
 		}
-		dll.FPDF_InitLibraryWithConfig(topointer(this.LIBRARY_CONFIG))
+		dll.FPDF_InitLibraryWithConfig(this.LIBRARY_CONFIG)
 		if (type.isString(pdfPath) and #pdfPath > 0x410/*_MAX_PATH_U8*/){
 			this.doc = dll.FPDF_LoadMemDocumentP(pdfPath,#pdfPath,password)
 		}else {
 			pdfPath = ..string.fromto(pdfPath)
 			this.doc = dll.FPDF_LoadDocumentP(pdfPath,password)
 		}
+
 		var round = ..math.round
 		
 		this.currentPageHandle = 0;

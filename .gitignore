@@ -50,3 +50,5 @@ Module.symvers
 Mkfile.old
 dkms.conf
 dst
+
+dist/
