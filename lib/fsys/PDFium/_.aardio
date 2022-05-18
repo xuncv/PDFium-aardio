@@ -6,10 +6,10 @@ class PDFium{
 	ctor( pdfPath,password="" ){
 		this.LIBRARY_CONFIG = {
 			int version = 2;
-			pointer m_pUserFontPaths = topointer(0);
-			pointer m_pIsolate = topointer(0);
-			INT m_v8EmbedderSlot = 0;
-			pointer m_pPlatform = topointer(0);
+			pointer m_pUserFontPaths;
+			pointer m_pIsolate;
+			INT m_v8EmbedderSlot;
+			pointer m_pPlatform;
 		}
 		dll.FPDF_InitLibraryWithConfig(this.LIBRARY_CONFIG)
 		if (type.isString(pdfPath) and #pdfPath > 0x410/*_MAX_PATH_U8*/){
