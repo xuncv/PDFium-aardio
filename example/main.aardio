@@ -22,11 +22,11 @@ import fsys.pdfium;
 import web.view;
 
 var wb = web.view(mainForm.static); 
-wb.go("/FoxitPDF_SDK20_Guide.pdf");
+wb.go("/pdf/pdfium.pdf");
 
-var pdf = fsys.pdfium("/FoxitPDF_SDK20_Guide.pdf")
+var pdf = fsys.pdfium("/pdf/pdfium.pdf")
 
-//获取 PDF 属性表
+//获取 PDF 元数据
 var meta = pdf.getMeta();
 mainForm.editMeta.print(meta);
 
@@ -39,7 +39,7 @@ mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
 	if(data){
 		pdf.pageNum = data.pageIndex;
 		
-		wb.go("/FoxitPDF_SDK20_Guide.pdf#page="+data.pageIndex)  
+		wb.go("/pdf/pdfium.pdf#page="+data.pageIndex)  
 		mainForm.editPageNum.text = data.pageIndex; 
 	} 	
 }
