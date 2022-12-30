@@ -51,7 +51,7 @@ for left,top,right,bottom,text in reader.eachTextRect(){
 #### 依赖项目:
 
 1. [pdfium - Git at Google (googlesource.com)](https://pdfium.googlesource.com/pdfium/)
-2. [bblanchon/pdfium-binaries: 📰 Binary distribution of PDFium (github.com)](https://github.com/bblanchon/pdfium-binaries) (pdfium去掉v8核心的预编译动态库)
+2. [bblanchon/pdfium-binaries: 📰 Binary distribution of PDFium (github.com)](https://github.com/bblanchon/pdfium-binaries) ( PDFium 去掉 V8 核心的 DLL 动态库)
 
 ![](screenshot.png)
 
