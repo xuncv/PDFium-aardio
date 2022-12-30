@@ -129,7 +129,10 @@ namespace pdfium{
 	}
 	
 	..table.gc(self,function(){
-		if(self.initialized) dll.FPDF_DestroyLibrary()
+		if(self.initialized){
+			 dll.FPDF_DestroyLibrary();
+			 self.initialized = null;
+		}
 	});
 	
 	lasterr = function(){
