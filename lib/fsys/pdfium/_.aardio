@@ -256,6 +256,10 @@ namespace pdfium{
 
 PDFium = pdfium;//@Deprecated
 
+/**details(开源项目主页)
+https://github.com/xuncv/PDFium-aardio
+end details**/
+
 /**intellisense()
 fsys.pdfium = 基于 Google 开源组件 PDFium 封装的 PDF 解析库
 fsys.pdfium() = !fsysPdfium.
