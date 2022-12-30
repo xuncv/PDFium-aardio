@@ -6,9 +6,10 @@ PDFium 是 Google 著名开源项目 Chromium 的一部分，这部分代码就�
 
 # 示例:
 
-载入pdf
+载入 PDF
 
 ```javascript
+import fsys.pdfium; //已收录到 aardio 自带扩展库，首次引用自动安装
 var pdf = fsys.pdfium("test.pdf")
 ```
 
