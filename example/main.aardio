@@ -78,7 +78,7 @@ mainForm.spinPageNum.inc = 1;
 mainForm.spinPageNum.oncommand = function(id,event,pos){ 
 	if( pos && event == 4/*_SB_THUMBPOSITION*/ ){
 		pdf.pageNum = mainForm.editPageNum.text;
-		wb.go("/FoxitPDF_SDK20_Guide.pdf#page="+mainForm.editPageNum.text) 
+		wb.go("/pdf/pdfium.pdf#page="+mainForm.editPageNum.text) 
 	}
 } 
 
