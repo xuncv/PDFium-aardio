@@ -1,80 +1,86 @@
 import win.ui;
 /*DSG{{*/
-mainForm = win.form(text="pdfDemo";right=1050;bottom=620)
+mainForm = win.form(text="pdfDemo";right=1050;bottom=620;bgcolor=16777215)
 mainForm.add(
-button={cls="button";text="提取文本";left=916;top=349;right=1014;bottom=381;z=9};
-button2={cls="button";text="转为图像";left=916;top=403;right=1014;bottom=435;z=10};
-button3={cls="button";text="遍历文本分块";left=916;top=458;right=1014;bottom=490;z=11};
-edit={cls="edit";text="1";left=936;top=310;right=979;bottom=329;edge=1;z=6};
-edit2={cls="edit";text="Edit";left=950;top=206;right=951;bottom=207;edge=1;z=5};
-richedit2={cls="richedit";text="RichEdit";left=878;top=10;right=1043;bottom=267;edge=1;hscroll=1;multiline=1;vscroll=1;z=1};
-static={cls="static";text="Static";left=177;top=14;right=861;bottom=582;transparent=1;z=3};
-static2={cls="static";text="目录";left=21;top=9;right=166;bottom=31;transparent=1;z=4};
-static3={cls="static";text="第";left=913;top=312;right=931;bottom=329;transparent=1;z=7};
-static4={cls="static";text="页";left=986;top=310;right=1008;bottom=329;transparent=1;z=8};
-treeview={cls="treeview";left=18;top=37;right=162;bottom=553;asel=false;bgcolor=16777215;edge=1;z=2}
+btnEachTextRect={cls="button";text="遍历文本分块";left=878;top=546;right=976;bottom=578;bgcolor=16777215;db=1;dr=1;z=11};
+btnExtractText={cls="button";text="提取文本";left=878;top=437;right=976;bottom=469;bgcolor=16777215;db=1;dr=1;z=9};
+btnGetBitmap={cls="button";text="转为图像";left=878;top=491;right=976;bottom=523;bgcolor=16777215;db=1;dr=1;z=10};
+edit2={cls="edit";text="Edit";left=950;top=206;right=951;bottom=207;bgcolor=16777215;dr=1;dt=1;edge=1;z=6};
+editMeta={cls="richedit";left=878;top=37;right=1043;bottom=357;bgcolor=16777215;db=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=2};
+editPageNum={cls="edit";text="1";left=904;top=396;right=942;bottom=418;align="right";db=1;dr=1;edge=1;multiline=1;z=1};
+spinPageNum={cls="spin";left=943;top=396;right=963;bottom=419;db=1;dr=1;z=12};
+static={cls="static";text="Static";left=177;top=14;right=861;bottom=582;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;z=4};
+static2={cls="static";text="目录";left=21;top=9;right=166;bottom=31;bgcolor=16777215;dl=1;dt=1;z=5};
+static3={cls="static";text="第";left=884;top=400;right=902;bottom=417;bgcolor=16777215;db=1;dr=1;z=7};
+static4={cls="static";text="页";left=969;top=397;right=996;bottom=416;bgcolor=16777215;db=1;dr=1;z=8};
+static5={cls="static";text="元数据";left=876;top=9;right=1021;bottom=31;bgcolor=16777215;dr=1;dt=1;z=13};
+treeview={cls="treeview";left=18;top=37;right=162;bottom=553;asel=false;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;z=3}
 )
 /*}}*/
 
-import fsys.PDFium
-import web.view
+import fsys.pdfium;
+import web.view;
 
-wb = web.view(mainForm.static);
+var wb = web.view(mainForm.static); 
+wb.go("/FoxitPDF_SDK20_Guide.pdf");
 
-var pdfPath = io.fullpath("FoxitPDF_SDK20_Guide.pdf")
-wb.go(pdfPath)
-reader = fsys.PDFium(pdfPath)
+var pdf = fsys.pdfium("/FoxitPDF_SDK20_Guide.pdf")
 
-//获取pdf属性表
-var meta = reader.getMeta();
-mainForm.richedit2.text = '属性表:\n' + table.tostring(meta) + '\n'
+//获取 PDF 属性表
+var meta = pdf.getMeta();
+mainForm.editMeta.print(meta);
 
 //加载目录
-var bm = reader.extractBookmarks()
+var bm = pdf.extractBookmarks()
 mainForm.treeview.insertItem( bm.asTree() )
 
-//小工具
-mainForm.edit.addCtrl(
-    spin={
-        cls="spin";marginRight=4;marginTop=1;marginBottom=4;width=16;
-        oncommand = function(id,event,pos){
-            if( pos && event == 0x4/*_SB_THUMBPOSITION*/ ){
-                mainForm.edit.text = tostring(pos)
-            }
-        }
-    }
-)
+//改变当前节点
+mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
+	if(data){
+		pdf.pageNum = data.pageIndex;
+		
+		wb.go("/FoxitPDF_SDK20_Guide.pdf#page="+data.pageIndex)  
+		mainForm.editPageNum.text = data.pageIndex; 
+	} 	
+}
 
-mainForm.edit.spin.setRange(1,reader.pageCount); //设置数值的上下限
-mainForm.edit.spin.pos = 1;//设置数值
-mainForm.edit.spin.inc  = 1;//设置每次点击箭头的增减量（步长）
-mainForm.edit.setPadding(2,18);//设置文本框内边距
-
-
-//pdf合并工具 todo
-mainForm.button.oncommand = function(id,event){
-	reader.pageNum = ( tonumber( mainForm.edit.text) -1 )
-	var text = reader.extractText();
+mainForm.btnExtractText.oncommand = function(id,event){
+	pdf.pageNum = mainForm.editPageNum.text;
+	var text = pdf.extractText();
+	
 	var frmText = mainForm.loadForm("\dlg\frmText.aardio");
-	frmText.richedit.text = text
+	frmText.richedit.text = text;
 	frmText.show();
 }
 
-mainForm.button2.oncommand = function(id,event){
-    reader.pageNum = ( tonumber( mainForm.edit.text) -1 )
-	var bitmap = reader.asBitmap()
-	bitmap.save("./out.jpg",100)
-	import process
-	process.exploreSelect("out.jpg")
+mainForm.btnGetBitmap.oncommand = function(id,event){
+	pdf.pageNum = mainForm.editPageNum.text;
+	var bitmap = pdf.asBitmap();
+	bitmap.save("./out.jpg",100);
+	
+	import process;
+	process.exploreSelect("out.jpg");
 }
 
-mainForm.button3.oncommand = function(id,event){
-    import console
-    reader.pageNum = ( tonumber( mainForm.edit.text) -1 );
-    for left,top,right,bottom,text in reader.eachTextRect(){
-    	console.log(left,top,right,bottom,text)
-    }
+mainForm.btnEachTextRect.oncommand = function(id,event){
+	import console
+	pdf.pageNum = ( tonumber( mainForm.editPageNum.text) -1 );
+	for left,top,right,bottom,text in pdf.eachTextRect(){
+		console.log(left,top,right,bottom,text)
+	}
 }
+
+mainForm.spinPageNum.buddy = mainForm.editPageNum; 
+mainForm.spinPageNum.setRange(1,pdf.pageCount); 
+mainForm.spinPageNum.pos = 1;
+mainForm.spinPageNum.inc = 1;
+
+mainForm.spinPageNum.oncommand = function(id,event,pos){ 
+	if( pos && event == 4/*_SB_THUMBPOSITION*/ ){
+		pdf.pageNum = mainForm.editPageNum.text;
+		wb.go("/FoxitPDF_SDK20_Guide.pdf#page="+mainForm.editPageNum.text) 
+	}
+} 
 
 mainForm.show();
 return win.loopMessage();
