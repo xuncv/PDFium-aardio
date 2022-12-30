@@ -46,8 +46,8 @@ mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
 
 mainForm.btnExtractText.oncommand = function(id,event){
 	pdf.pageNum = mainForm.editPageNum.text;
-	var text = pdf.extractText();
 	
+	var text = pdf.extractText();
 	var frmText = mainForm.loadForm("\dlg\frmText.aardio");
 	frmText.richedit.text = text;
 	frmText.show();
@@ -55,6 +55,7 @@ mainForm.btnExtractText.oncommand = function(id,event){
 
 mainForm.btnGetBitmap.oncommand = function(id,event){
 	pdf.pageNum = mainForm.editPageNum.text;
+	
 	var bitmap = pdf.asBitmap();
 	bitmap.save("./out.jpg",100);
 	
@@ -63,8 +64,9 @@ mainForm.btnGetBitmap.oncommand = function(id,event){
 }
 
 mainForm.btnEachTextRect.oncommand = function(id,event){
-	import console
-	pdf.pageNum = ( tonumber( mainForm.editPageNum.text) -1 );
+	pdf.pageNum = mainForm.editPageNum.text;
+	
+	import console;
 	for left,top,right,bottom,text in pdf.eachTextRect(){
 		console.log(left,top,right,bottom,text)
 	}
