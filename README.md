@@ -25,7 +25,7 @@ mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
 	if(data){
 		pdf.pageNum = data.pageIndex;//设置当前页码，起始页码为 1
 		
-        //wb 为 web.view 对象
+		//wb 为 web.view 对象
 		wb.go("/FoxitPDF_SDK20_Guide.pdf#page="+data.pageIndex)  
 		mainForm.editPageNum.text = data.pageIndex; 
 	} 	
@@ -45,7 +45,7 @@ var text = pdf.extractText();`
 import console
 reader.pageNum = 8; //设置当前页码，起始页码为 1
 for left,top,right,bottom,text in reader.eachTextRect(){
-    console.log(left,top,right,bottom,text)
+	console.log(left,top,right,bottom,text)
 }
 ```
 
@@ -53,7 +53,7 @@ for left,top,right,bottom,text in reader.eachTextRect(){
 
 1. [pdfium - Git at Google (googlesource.com)](https://pdfium.googlesource.com/pdfium/)
 2. [bblanchon/pdfium-binaries: 📰 Binary distribution of PDFium (github.com)](https://github.com/bblanchon/pdfium-binaries) ( PDFium 去掉 V8 核心的 DLL 动态库)
-  
+	
 
 ![](screenshots/screenshot.png)
 
