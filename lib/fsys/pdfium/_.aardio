@@ -9,24 +9,24 @@ class pdfium{
 		init();
 		
 		if(!pdfPath){
-			this.doc = dll.FPDF_CreateNewDocument();
+			this.hPdfDoc = dll.FPDF_CreateNewDocument();
 		}
 		elseif (type.isString(pdfPath) and #pdfPath > 0x410/*_MAX_PATH_U8*/){
-			this.doc = dll.FPDF_LoadMemDocumentP(pdfPath,#pdfPath,password)
+			this.hPdfDoc = dll.FPDF_LoadMemDocumentP(pdfPath,#pdfPath,password)
 		}
 		else {
 			pdfPath = ..io.fullpath(pdfPath)
-			this.doc = dll.FPDF_LoadDocumentP(pdfPath,password)
+			this.hPdfDoc = dll.FPDF_LoadDocumentP(pdfPath,password)
 		}
 		
-		if(!this.doc) return null,lasterr();
+		if(!this.hPdfDoc) return null,lasterr();
 
 		..table.gc(this,"destroy");
 	};
 	
 	
 	extractBookmarks = function(){
-		return self.bookmark(this.doc,0); 
+		return self.bookmark(this.hPdfDoc,0); 
 	};
 	
 	eachTextRect = function(){
@@ -54,17 +54,17 @@ class pdfium{
 		var meta = {}
 		
 		for(k,v in keys){
-			var len = dll.FPDF_GetMetaText(this.doc,v,null,null)
+			var len = dll.FPDF_GetMetaText(this.hPdfDoc,v,null,null)
 			var buffer = ..raw.buffer(len)
 			
-			len = dll.FPDF_GetMetaText(this.doc,v,buffer,len)
+			len = dll.FPDF_GetMetaText(this.hPdfDoc,v,buffer,len)
 			meta[v] = ..string.fromUnicode( buffer )
 		}
 		return meta
 	}
 	
 	extractText = function(){
-		if(!owner.currentPage) error("请先指定 pageNum 属性！",2);
+		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
 		
 		var textPage = dll.FPDFText_LoadPageP(this.currentPage);
 		var textCountChars = dll.FPDFText_CountChars(textPage);
@@ -74,11 +74,11 @@ class pdfium{
 		return ..string.fromUnicode( buffer );
 	}
 	
-	asBitmap = function(){
-		if(!owner.currentPage) error("请先指定 pageNum 属性！",2);
+	asBitmap = function(bgcolor){
+		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
 		
 		var bit = dll.FPDFBitmap_CreateP( owner.pageWidth,owner.pageHeight,0 )
-		dll.FPDFBitmap_FillRect(bit,0,0,owner.pageWidth,owner.pageHeight,0xFFFFFFFF);
+		dll.FPDFBitmap_FillRect(bit,0,0,owner.pageWidth,owner.pageHeight,bgcolor || 0xFFFFFFFF);
 		dll.FPDF_RenderPageBitmap(bit,this.currentPage,0,0,owner.pageWidth,owner.pageHeight,0,0x02 | 0x01);
 		
 		var buffer = dll.FPDFBitmap_GetBufferP(bit);
@@ -94,7 +94,7 @@ class pdfium{
 			dll.FPDF_ClosePage(this.currentPage);
 			this.currentPage = null
 		}
-		dll.FPDF_CloseDocument(this.doc);
+		dll.FPDF_CloseDocument(this.hPdfDoc);
 	}
 	
 	@_metaProperty;	
@@ -153,21 +153,22 @@ namespace pdfium{
 	round = ..math.round;
 	
 	_metaProperty = ..util.metaProperty(
+		_topointer = lambda() owner.hPdfDoc;
 		pageCount = {
 			_get = function(){ 
-				return dll.FPDF_GetPageCount(owner.doc)
+				return dll.FPDF_GetPageCount(owner.hPdfDoc)
 			}	 
 		};
 		pageWidth = {
 			_get = function(){ 
 				return round( dll.FPDF_GetPageWidthF(owner.currentPage) ); 
 			}
-		}
+		};
 		pageHeight = {
 			_get = function(){ 
 				return round( dll.FPDF_GetPageHeightF(owner.currentPage) ); 
 			}
-		}
+		};
 		pageNum = {
 			_get = function(){
 				return owner[["(pageNum)"]] : 0
@@ -183,16 +184,118 @@ namespace pdfium{
 					dll.FPDF_ClosePage(owner.currentPage);
 					owner.currentPage = null
 				}
-				owner.currentPage = dll.FPDF_LoadPageP(owner.doc,value-1);
+				owner.currentPage = dll.FPDF_LoadPageP(owner.hPdfDoc,value-1);
 				owner[["(pageNum)"]] = value;
 			}
-		}
+		};
+		createPage = function(index,width,height){
+			if(owner.currentPage){
+				dll.FPDF_ClosePage(owner.currentPage);
+				owner.currentPage = null
+			}
+			
+			if(index>owner.pageCount) index = owner.pageCount +1;
+			owner.currentPage = FPDFPage_New(owner.currentPage,index-1,..raw.double(),..raw.double()); 
+			
+			if(owner.currentPage){
+				owner[["(pageNum)"]] = index;
+				return true;
+			}
+		};
+		deletePage = function(index){
+			if(owner[["(pageNum)"]]===index){
+				if(owner.currentPage){
+					dll.FPDF_ClosePage(owner.currentPage);
+					owner.currentPage = null
+				}
+				
+				owner[["(pageNum)"]] = 0;
+			}
+			
+			
+			dll.FPDFPage_Delete(owner.hPdfDoc,index-1);
+		};
+		importPages = function(srcPdf,index,pageIndicesOrRange){
+			if(!srcPdf[["hPdfDoc"]]) {
+				srcPdf = ..fsys.pdfium(srcPdf);
+				if(srcPdf){
+					owner.importPages(srcPdf,index,pageIndicesOrRange);
+					srcPdf.destroy();
+					return;
+				}
+				
+				error("参数 @1 必须指定 fsys.pdfium 对象",2);
+			}
+			
+			if(!#pageIndicesOrRange){
+				return !!dll.FPDF_ImportPagesByIndex(owner.hPdfDoc,srcPdf.hPdfDoc,,0,index-1); 	
+			}
+			
+			if(type(pageIndicesOrRange)=="table"){
+				var indices = {}
+				for(i,v in pageIndicesOrRange) indices[i] = v-1;
+				return dll.FPDF_ImportPagesByIndex(owner.hPdfDoc,srcPdf.hPdfDoc,{int pages[]=indices},#indices,index-1);
+			}
+			else{
+				return dll.FPDF_ImportPages(owner.hPdfDoc,srcPdf.hPdfDoc,pageIndicesOrRange,index-1);	
+			}
+		};
+		copyViewerPreferences = function(srcPdf){
+			if(!srcPdf[["hPdfDoc"]]) {
+				srcPdf = ..fsys.pdfium(srcPdf);
+				if(srcPdf){
+					owner.copyViewerPreferences(srcPdf);
+					srcPdf.destroy();
+					return;
+				}
+				
+				error("参数 @1 必须指定 fsys.pdfium 对象",2);
+			}
+			return !!dll.FPDF_CopyViewerPreferences(owner.hPdfDoc,src.hPdfDoc);
+		};
+		render = function(hdcOrGraphics,x,y,cx,cy,rotate,flags){
+			if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+			
+			if(type(hdcOrGraphics)=="table"){
+				var hdc = hdcOrGraphics.getDc();
+				this.render(hdc,x,y,cx,cy,rotate,flags);
+				hdcOrGraphics.releaseDc(hdc);
+				return;
+			}
+			
+			dll.FPDF_RenderPage(hdcOrGraphics,owner.currentPage,x,y,cx,cy,rotate,flags); 
+		};
+		saveAsCopy = function(callback,fileVersion,flags){
+			var writer = { 
+  				int version = 1; 
+  				ptr onWrite = ..raw.tocdecl(callback,"int(ptr pWriter,ptr pData,INT size)",owner);
+  			};
+  			
+  			if(fileVersion){
+  				return !!dll.FPDF_SaveWithVersion(owner.hPdfDoc,writer,flags,fileVersion);
+  			}
+  			else {
+  				return !!dll.FPDF_SaveAsCopy(owner.hPdfDoc,writer,flags);
+  			}
+		};
+		save = function(path,fileVersion,flags){
+			var file,err = ..io.open(path,"w+b");
+			if(!file) return null,err; 
+			
+			var ret = owner.saveAsCopy( function(pWriter,pData,size){
+				return file.writeBuffer(pData,size);
+			},fileVersion,flags) 
+			
+			file.close();
+			return ret;
+		};
+		
 	)
 			
 	class bookmark{
 		
-		ctor( doc,handle ){
-			this.doc = doc;
+		ctor( hPdfDoc,handle ){
+			this.hPdfDoc = hPdfDoc;
 			this.handle = handle;
 		};
 
@@ -223,11 +326,11 @@ namespace pdfium{
 			children = {
 				_get = function(){
 					var c = {}
-					var h = dll.FPDFBookmark_GetFirstChildP(owner.doc,owner.handle)
+					var h = dll.FPDFBookmark_GetFirstChildP(owner.hPdfDoc,owner.handle)
 					if(h){
 						do{
-							..table.push( c,..fsys.pdfium.bookmark(owner.doc,h) )
-							h = dll.FPDFBookmark_GetNextSiblingP(owner.doc,h)
+							..table.push( c,..fsys.pdfium.bookmark(owner.hPdfDoc,h) )
+							h = dll.FPDFBookmark_GetNextSiblingP(owner.hPdfDoc,h)
 						}while(h)
 					}
 					return c; 
@@ -248,8 +351,8 @@ namespace pdfium{
 			
 			pageIndex = {
 				_get = function(){
-					var dst = dll.FPDFBookmark_GetDestP(owner.doc,owner.handle)
-					var pageIndex = dll.FPDFDest_GetDestPageIndex(owner.doc,dst)
+					var dst = dll.FPDFBookmark_GetDestP(owner.hPdfDoc,owner.handle)
+					var pageIndex = dll.FPDFDest_GetDestPageIndex(owner.hPdfDoc,dst)
 					return pageIndex + 1; 	
 				}		
 			}
@@ -275,6 +378,7 @@ lasterr() = 返回错误信息。\n如果最后一次操作成功则返回 null
 end intellisense**/
 
 /**intellisense(!fsysPdfium)
+destroy() = 释放对象
 pageNum = 读取或设置当前活动页码，页码自 1 开始
 extractBookmarks() = 提取目录,返回 fsys.pdfium.bookmark 对象
 getMeta() = 获取pdf属性表
@@ -282,11 +386,20 @@ extractText() = 提取当前页文本
 asBitmap() = 当前页转换为 gdip.bitmap 对象
 eachTextRect() = 遍历当前页文本块
 eachTextRect() = @for left,top,right,bottom,text in ??.eachTextRect(){
-	
+	__/*遍历当前页文本区块。\nleft,top,right,bottom 分别为左上右下位置。\ntext 为文本*/
 }
+render( = 窗口绘图
+render(.(hdcOrGraphics,x,y,cx,cy,rotate,flags) = 参数 @hdcOrGraphics 可指定 hdc 或 graphics 对象，\n@x,@y 指定 x,y 坐标，@cx 指定宽，@cy 指定高。\n@rotate 为 1 顺时针转 90 度，设为 2 转 180 度，设为 3 为逆时针转 90 度\n@rotate 与 @flags 一般不必指定
+createPage(.(index,width,height) = 创建页面。\n@index 指定页码，@width 指定宽，@height 指定高
+deletePage(__) = 删除参数 @1 指定页码的页面，起始页码为 1。\n如果删除 pageNum 指定的页码则关闭当前页，且 pageNum 设为 0
+importPages(.(srcPdf,index,pageIndicesOrRange) = 导入并合并 PDF。\nsrcPdf 指定要导入的 fsys.pdfium 对象，也可指定 PDF 路径或数据。\nindex 指定要插入的页码，不指定则添加到尾部。\n@pageIndicesOrRange 可以指定页码数组，\n也可以用字符串指定区间，示例："1,3,5-7"。\n省略 @pageIndicesOrRange 则导入所有页面
+copyViewerPreferences(srcPdf) = 导入 PDF 设置。\nsrcPdf 指定要导入的 fsys.pdfium 对象，也可指定 PDF 路径或数据
+saveAsCopy(callback,fileVersion,flags) = @.saveAsCopy( function(pWriter,pData,size){\n	__/*保存 PDF 回调函数，其他为可选调用参数（不用管）。\n回调参数 pData 为要写入的内存指针，回调参数 size 为待写入长度。\n保存成功请返回非零数值，出错返回 0*/\n}) 
+save( = 保存 PDF 文件
+save(.(path,fileVersion,flags) = 保存 PDF 到文件，成功返回 true。\n@path 指定文件路径。\n可选用 @fileVersion 指定文件版本，15 表示版本 1.5。\n@flags 为可选参数，一般不用指定，用法请参考 PDFium 文档
 end intellisense**/
 
-	/**intellisense()
+/**intellisense()
 _FPDFBitmap_Unknown=@0/*_FPDFBitmap_Unknown*/
 _FPDFBitmap_Gray=@1/*_FPDFBitmap_Gray*/
 _FPDFBitmap_BGR=@2/*_FPDFBitmap_BGR*/
