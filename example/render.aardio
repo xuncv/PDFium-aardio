@@ -30,7 +30,7 @@ winform.treeview.onSelChanged = function(hItem,data,nmTreeView){
 }
 
 /*
-//这样实时绘图也可以，但是这样自己计算缩放比例，比较麻烦
+//这样实时绘图也可以，但需要自己计算缩放比例
 winform.plus.onDrawContent = function(graphics,rc,txtColor,rcContent,foreColor){
 	pdf.render(graphics,rc.xywh())
 }
