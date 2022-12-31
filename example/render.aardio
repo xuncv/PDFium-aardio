@@ -1,0 +1,40 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="PDF 简单绘图";right=1083;bottom=737)
+winform.add(
+plus={cls="plus";left=325;top=8;right=1073;bottom=726;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;repeat="scale";z=2};
+treeview={cls="treeview";left=12;top=5;right=315;bottom=725;asel=false;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;z=1}
+)
+/*}}*/
+
+import fsys.pdfium;
+import web.view;
+
+//打开 PDF
+var pdf = fsys.pdfium("/bookmarks/pdf/pdfium.pdf")
+pdf.pageNum = 1;
+winform.plus.background = pdf.asBitmap();
+
+//加载目录
+var bm = pdf.extractBookmarks()
+winform.treeview.insertItem( bm.asTree() )
+
+//改变当前节点
+winform.treeview.onSelChanged = function(hItem,data,nmTreeView){
+	if(data){
+		pdf.pageNum = data.pageIndex;
+		
+		//这样比较方便，可以用 plus 设置显示模式，性能也相对较好
+		winform.plus.background = pdf.asBitmap();
+	} 	
+}
+
+/*
+//这样实时绘图也可以，但是这样自己计算缩放比例，比较麻烦
+winform.plus.onDrawContent = function(graphics,rc,txtColor,rcContent,foreColor){
+	pdf.render(graphics,rc.xywh())
+}
+*/
+
+winform.show();
+win.loopMessage();

@@ -254,11 +254,11 @@ namespace pdfium{
 			return !!dll.FPDF_CopyViewerPreferences(owner.hPdfDoc,src.hPdfDoc);
 		};
 		render = function(hdcOrGraphics,x,y,cx,cy,rotate,flags){
-			if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+			if(!owner.currentPage) error("请先指定 pageNum 属性！",2);
 			
 			if(type(hdcOrGraphics)=="table"){
 				var hdc = hdcOrGraphics.getDc();
-				this.render(hdc,x,y,cx,cy,rotate,flags);
+				owner.render(hdc,x,y,cx,cy,rotate,flags);
 				hdcOrGraphics.releaseDc(hdc);
 				return;
 			}
