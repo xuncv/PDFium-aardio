@@ -9,8 +9,11 @@ PDFium 是 Google 著名开源项目 Chromium 的一部分，也是福昕的技�
 载入 PDF
 
 ```javascript
-import fsys.pdfium; //已收录到 aardio 自带扩展库，首次引用自动安装
-var pdf = fsys.pdfium("test.pdf")
+//已收录到 aardio 自带扩展库
+import fsys.pdfium; 
+
+//打开 PDF 文件
+var pdf = fsys.pdfium("/test.pdf")
 ```
 
 提取树形目录
@@ -20,7 +23,7 @@ var pdf = fsys.pdfium("test.pdf")
 var bm = pdf.extractBookmarks()
 mainForm.treeview.insertItem( bm.asTree() )
 
-//改变当前节点
+//树视图改变当前节点触发此事件
 mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
 	if(data){
 		pdf.pageNum = data.pageIndex;//设置当前页码，起始页码为 1
