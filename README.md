@@ -46,7 +46,7 @@ mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
 		pdf.pageNum = data.pageIndex;//设置当前页码，起始页码为 1
 		
 		//wb 为 web.view 对象
-		wb.go("/FoxitPDF_SDK20_Guide.pdf#page="+data.pageIndex)  
+		wb.go("/a.pdf#page="+data.pageIndex)  
 		mainForm.editPageNum.text = data.pageIndex; 
 	} 	
 }
