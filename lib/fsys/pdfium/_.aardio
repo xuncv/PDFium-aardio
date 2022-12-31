@@ -11,7 +11,13 @@ class pdfium{
 		if(!pdfPath){
 			this.hPdfDoc = dll.FPDF_CreateNewDocument();
 		}
-		elseif (type.isString(pdfPath) and #pdfPath > 0x410/*_MAX_PATH_U8*/){
+		elseif(type.isString(pdfPath) and ..string.startWith(pdfPath,"http",true) && ..inet[["http"]]){
+			var data,err = ..inet.http.get(pdfPath);
+			if(!data) return null,err;
+			
+			this.hPdfDoc = dll.FPDF_LoadMemDocumentP(data,#data,password)
+		}
+		elseif(type.isString(pdfPath) and #pdfPath > 0x410/*_MAX_PATH_U8*/){
 			this.hPdfDoc = dll.FPDF_LoadMemDocumentP(pdfPath,#pdfPath,password)
 		}
 		else {
@@ -369,7 +375,7 @@ end details**/
 /**intellisense()
 fsys.pdfium = 基于 Google 开源组件 PDFium 封装的 PDF 解析库
 fsys.pdfium() = !fsysPdfium.
-fsys.pdfium(.(PDF路径或数据,PDF密码) = 创建 PDF 解析对象
+fsys.pdfium(.(PDF路径或数据,PDF密码) = 创建或打开 PDF 解析文档对象。\n参数 @1 可指定 PDF 文件路径或数据。\n如果事先导入 inet.http，参数 @1 也可以指定 PDF 文件网址。\n指定网址且下载 PDF 时不卡界面
 end intellisense**/
 
 /**intellisense(fsys.pdfium)
