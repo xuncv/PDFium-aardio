@@ -6,14 +6,31 @@ PDFium 是 Google 著名开源项目 Chromium 的一部分，也是福昕的技�
 
 # 示例:
 
-载入 PDF
+在 aardio 中导入 fsys.pdfium(PDFium) 扩展库就可以开始使用了，aardio 官方扩展库已收录 fsys.pdfium，不再需要单独下载安装。
+
+载入并显示 PDF
 
 ```javascript
-//已收录到 aardio 自带扩展库
-import fsys.pdfium; 
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="PDF 简单绘图")
+winform.add(
+plus={cls="plus";left=11;top=8;right=742;bottom=453;db=1;dl=1;dr=1;dt=1;repeat="scale";z=1}
+)
+/*}}*/
 
-//打开 PDF 文件
-var pdf = fsys.pdfium("/test.pdf")
+//打开 PDF
+import inet.http;
+import fsys.pdfium;
+var pdf = fsys.pdfium("https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf")
+
+//显示 PDF，自动支持 plus 控件的缩放模式
+pdf.pageNum = 1;
+winform.plus.background = pdf.asBitmap();
+
+winform.show();
+win.loopMessage();
+
 ```
 
 提取树形目录
@@ -35,6 +52,8 @@ mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
 }
 ```
 
+![](screenshots/screenshot.png)
+
 提取某页文本
 
 ```javascript
@@ -52,11 +71,21 @@ for left,top,right,bottom,text in reader.eachTextRect(){
 }
 ```
 
-#### 依赖项目:
+合并 PDF
+```javascript
+import fsys.pdfium;
+var pdf = fsys.pdfium("/a.pdf");
+
+//导入另外一个 PDF，参数 @1 也可以是另外的 fsys.pdfium 对象。
+pdf.importPages("/b.pdf",,"1-7,6,9");//导入 1-7,6,9 页，省略页码参数则导入所有页面
+
+//保存 PDF
+pdf.save("/c.pdf");
+```
+
+# 依赖项目:
 
 1. [pdfium - Git at Google (googlesource.com)](https://pdfium.googlesource.com/pdfium/)
 2. [bblanchon/pdfium-binaries: 📰 Binary distribution of PDFium (github.com)](https://github.com/bblanchon/pdfium-binaries) ( PDFium 去掉 V8 核心的 DLL 动态库)
 	
-
-![](screenshots/screenshot.png)
 

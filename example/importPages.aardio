@@ -1,0 +1,12 @@
+import console.int;
+console.showLoading("正在合并");
+
+import inet.http;
+import fsys.pdfium;
+var pdf = fsys.pdfium("https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf");
+
+//导入另外一个 PDF，参数 @1 也可以是另外的 fsys.pdfium 对象。
+pdf.importPages("/bookmarks/pdf/pdfium.pdf",,"1-3,6");//导入 1-3,6 页，省略页码参数则导入所有页面
+
+//保存 PDF
+pdf.save("/importPages.pdf");

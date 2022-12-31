@@ -222,6 +222,8 @@ namespace pdfium{
 			dll.FPDFPage_Delete(owner.hPdfDoc,index-1);
 		};
 		importPages = function(srcPdf,index,pageIndicesOrRange){
+			if(!index) index = owner.pageCount + 1;
+			
 			if(!srcPdf[["hPdfDoc"]]) {
 				srcPdf = ..fsys.pdfium(srcPdf);
 				if(srcPdf){
@@ -398,7 +400,7 @@ render( = 窗口绘图
 render(.(hdcOrGraphics,x,y,cx,cy,rotate,flags) = 参数 @hdcOrGraphics 可指定 hdc 或 graphics 对象，\n@x,@y 指定 x,y 坐标，@cx 指定宽，@cy 指定高。\n@rotate 为 1 顺时针转 90 度，设为 2 转 180 度，设为 3 为逆时针转 90 度\n@rotate 与 @flags 一般不必指定
 createPage(.(index,width,height) = 创建页面。\n@index 指定页码，@width 指定宽，@height 指定高
 deletePage(__) = 删除参数 @1 指定页码的页面，起始页码为 1。\n如果删除 pageNum 指定的页码则关闭当前页，且 pageNum 设为 0
-importPages(.(srcPdf,index,pageIndicesOrRange) = 导入并合并 PDF。\nsrcPdf 指定要导入的 fsys.pdfium 对象，也可指定 PDF 路径或数据。\nindex 指定要插入的页码，不指定则添加到尾部。\n@pageIndicesOrRange 可以指定页码数组，\n也可以用字符串指定区间，示例："1,3,5-7"。\n省略 @pageIndicesOrRange 则导入所有页面
+importPages(.(srcPdf,index,pageIndicesOrRange) = 导入并合并 PDF。\nsrcPdf 指定要导入的 fsys.pdfium 对象，也可指定 PDF 路径或数据。\n@index 指定要插入的页码，不指定则添加到尾部。\n@pageIndicesOrRange 可以指定页码数组，\n也可以用字符串指定区间，示例："1,3,5-7"。\n省略 @pageIndicesOrRange 则导入所有页面
 copyViewerPreferences(srcPdf) = 导入 PDF 设置。\nsrcPdf 指定要导入的 fsys.pdfium 对象，也可指定 PDF 路径或数据
 saveAsCopy(callback,fileVersion,flags) = @.saveAsCopy( function(pWriter,pData,size){\n	__/*保存 PDF 回调函数，其他为可选调用参数（不用管）。\n回调参数 pData 为要写入的内存指针，回调参数 size 为待写入长度。\n保存成功请返回非零数值，出错返回 0*/\n}) 
 save( = 保存 PDF 文件

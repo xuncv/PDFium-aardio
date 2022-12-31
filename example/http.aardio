@@ -1,20 +1,27 @@
+import fonts.fontAwesome;
 import win.ui;
 /*DSG{{*/
 var winform = win.form(text="PDF 简单绘图";right=1083;bottom=737)
 winform.add(
-plus={cls="plus";left=325;top=8;right=1073;bottom=726;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;repeat="scale";z=2};
+plus={cls="plus";left=325;top=8;right=1073;bottom=726;bgcolor=16777215;color=32768;db=1;dl=1;dr=1;dt=1;font=LOGFONT(h=-62;name='FontAwesome');repeat="scale";z=2};
 treeview={cls="treeview";left=12;top=5;right=315;bottom=725;asel=false;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;z=1}
 )
 /*}}*/
 
+//正在下载
+winform.plus.disabledText = {'\uF254';'\uF251';'\uF252';'\uF253';'\uF250';text=''}
+winform.show();
+
 //打开 PDF
-import fsys.pdfium; 
-var pdf = fsys.pdfium("/bookmarks/pdf/pdfium.pdf");
+import inet.http;//导入 inet.http 支持网络 PDF
+import fsys.pdfium;
+var pdf = fsys.pdfium("https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf")
 
 //显示首页
 pdf.pageNum = 1;
 winform.plus.background = pdf.asBitmap();
-
+winform.plus.disabledText = null;
+ 
 //加载目录
 var bm = pdf.extractBookmarks()
 winform.treeview.insertItem( bm.asTree() )
@@ -22,19 +29,9 @@ winform.treeview.insertItem( bm.asTree() )
 //点击目录切换页面
 winform.treeview.onSelChanged = function(hItem,data,nmTreeView){
 	if(data){
-		pdf.pageNum = data.pageIndex;
-		
-		//这样比较方便，可以用 plus 设置显示模式，性能也相对较好
+		pdf.pageNum = data.pageIndex; 
 		winform.plus.background = pdf.asBitmap();
 	} 	
 }
 
-/*
-//这样实时绘图也可以，但是这样自己计算缩放比例，比较麻烦
-winform.plus.onDrawContent = function(graphics,rc,txtColor,rcContent,foreColor){
-	pdf.render(graphics,rc.xywh())
-}
-*/
-
-winform.show();
 win.loopMessage();
