@@ -362,7 +362,7 @@ namespace pdfium{
 
 PDFium = pdfium;//@Deprecated
 
-/**details(开源项目主页)
+/**details(项目主页)
 https://github.com/xuncv/PDFium-aardio
 end details**/
 
