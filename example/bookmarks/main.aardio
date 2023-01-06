@@ -7,9 +7,9 @@ btnExtractText={cls="button";text="提取文本";left=878;top=437;right=976;bott
 btnGetBitmap={cls="button";text="转为图像";left=878;top=491;right=976;bottom=523;bgcolor=16777215;db=1;dr=1;z=10};
 edit2={cls="edit";text="Edit";left=950;top=206;right=951;bottom=207;bgcolor=16777215;dr=1;dt=1;edge=1;z=6};
 editMeta={cls="richedit";left=878;top=37;right=1043;bottom=357;bgcolor=16777215;db=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=2};
-editPageNum={cls="edit";text="1";left=904;top=396;right=942;bottom=418;align="right";db=1;dr=1;edge=1;multiline=1;z=1};
-spinPageNum={cls="spin";left=943;top=396;right=963;bottom=419;db=1;dr=1;z=12};
-static={cls="static";text="Static";left=177;top=14;right=861;bottom=582;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;z=4};
+editPageNum={cls="edit";text="1";left=902;top=397;right=957;bottom=422;align="right";db=1;dr=1;edge=1;multiline=1;z=1};
+spinPageNum={cls="spin";left=936;top=399;right=956;bottom=419;dr=1;z=12};
+static={cls="static";left=177;top=14;right=861;bottom=582;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;z=4};
 static2={cls="static";text="目录";left=21;top=9;right=166;bottom=31;bgcolor=16777215;dl=1;dt=1;z=5};
 static3={cls="static";text="第";left=884;top=400;right=902;bottom=417;bgcolor=16777215;db=1;dr=1;z=7};
 static4={cls="static";text="页";left=969;top=397;right=996;bottom=416;bgcolor=16777215;db=1;dr=1;z=8};
