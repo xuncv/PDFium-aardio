@@ -51,7 +51,7 @@ class pdfium{
 			rectIndex++
 			if rectIndex > rectCount return null; 
 			
-			return round(left),round(top),round(right),round(bottom),..string.fromUnicode( buffer ); 
+			return round(left),round(top),round(right),round(bottom),..string.fromUtf16( buffer ); 
 		}; 	
 	}
 
@@ -64,7 +64,7 @@ class pdfium{
 			var buffer = ..raw.buffer(len)
 			
 			len = dll.FPDF_GetMetaText(this.hPdfDoc,v,buffer,len)
-			meta[v] = ..string.fromUnicode( buffer )
+			meta[v] = ..string.fromUtf16( buffer )
 		}
 		return meta
 	}
@@ -77,7 +77,7 @@ class pdfium{
 		var buffer = ..raw.buffer( textCountChars*2 );
 		var num = dll.FPDFText_GetText(textPage,0,textCountChars,buffer);
 		
-		return ..string.fromUnicode( buffer );
+		return ..string.fromUtf16( buffer );
 	}
 	
 	asBitmap = function(bgcolor){
@@ -201,7 +201,9 @@ namespace pdfium{
 			}
 			
 			if(index>owner.pageCount) index = owner.pageCount +1;
-			owner.currentPage = FPDFPage_New(owner.currentPage,index-1,..raw.double(),..raw.double()); 
+			 
+			owner.currentPage = dll.FPDFPage_New(owner.hPdfDoc,index-1
+				,..raw.double(width),..raw.double(height)); 
 			
 			if(owner.currentPage){
 				owner[["(pageNum)"]] = index;
@@ -351,7 +353,7 @@ namespace pdfium{
 					if(len>2){
 					var buffer = ..raw.buffer( len-2 )
 						len = dll.FPDFBookmark_GetTitle(owner.handle,buffer,len)
-						return ..string.fromUnicode(buffer,,-1);		
+						return ..string.fromUtf16(buffer,,-1);		
 					}
 
 				}	
