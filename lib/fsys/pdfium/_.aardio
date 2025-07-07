@@ -95,76 +95,72 @@ class pdfium{
 		return bitmap,err; 
 	}
 	
-    insertBitmap = function(bitmap, left, top, width, height){
-        if(!this.currentPage) error("请先指定 pageNum 属性！",2);
-        
-        var gcBitmap;
-        if(type.isString(bitmap)){
-        	bitmap = ..gdip.bitmap(bitmap);
-        	gcBitmap = true;
-        }
-        
-        if( type(bitmap) != "table" or !bitmap.lockMemory ) error("参数 @1 是无效的图像文件或 ..gdip.bitmap 对象",2);
+	insertBitmap = function(bitmap, left, top, width, height){
+		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+		
+		var gcBitmap;
+		if(type.isString(bitmap)){
+			bitmap = ..gdip.bitmap(bitmap);
+			gcBitmap = true;
+		}
+		
+		if( type(bitmap) != "table" or !bitmap.lockMemory ) error("参数 @1 是无效的图像文件或 ..gdip.bitmap 对象",2);
 
 		var bmpData = bitmap.lockMemory(,0x26200A/*_PixelFormat32bppARGB*/,1/*_GdipImageLockModeRead*/)
-        if(!bmpData) {  
-            if(gcBitmap) bitmap.dispose();
-            return null, "锁定 ..gdip.bitmap 像素数据失败";
-        }
-  
-        var imageObj = dll.FPDFPageObj_NewImageObjP(this.hPdfDoc);
-        if(!imageObj) {
-             if(gcBitmap) bitmap.dispose();
-        	return null, "创建 PDF 图像对象失败";
-        }
+		if(!bmpData) {  
+			if(gcBitmap) bitmap.dispose();
+			return null, "锁定 ..gdip.bitmap 像素数据失败";
+		}
+	
+		var imageObj = dll.FPDFPageObj_NewImageObjP(this.hPdfDoc);
+		if(!imageObj) {
+				if(gcBitmap) bitmap.dispose();
+			return null, "创建 PDF 图像对象失败";
+		}
 
-        var fpdfBitmap, ret;
-        try {
-            fpdfBitmap = dll.FPDFBitmap_CreateExP(bmpData.Width, bmpData.Height
-            	, 4/*_FPDFBitmap_BGRA*/, bmpData.Scan0, bmpData.Stride);
-            	
-            if(!fpdfBitmap){
-                error("创建 FPDF_BITMAP 失败", 0);
-            }
- 
-            if(!dll.FPDFImageObj_SetBitmap(null, 1, imageObj, fpdfBitmap)){
-                 error("设置图像数据到 PDF 对象失败", 0);
-            }
-             
-            var matrix = {
-                float a = width || bmpData.Width;  
-                float b = 0;
-                float c = 0;
-                float d = height || bmpData.Height; 
-                float e = left;   
-                float f; 
-            }
-            
-            //PDF 页面坐标原点在右下角。
-            matrix.f = this.pageHeight - (top||0) - matrix.d;
-            
-            dll.FPDFPageObj_SetMatrix(imageObj, matrix);
+		var fpdfBitmap, ret;
+		try {
+			fpdfBitmap = dll.FPDFBitmap_CreateExP(bmpData.Width, bmpData.Height
+				, 4/*_FPDFBitmap_BGRA*/, bmpData.Scan0, bmpData.Stride);
+				
+			if(!fpdfBitmap){
+				error("创建 FPDF_BITMAP 失败", 0);
+			}
+	
+			if(!dll.FPDFImageObj_SetBitmap(null, 1, imageObj, fpdfBitmap)){
+				error("设置图像数据到 PDF 对象失败", 0);
+			}
+				
+			var matrix = {
+				float a = width || bmpData.Width;  
+				float b = 0;
+				float c = 0;
+				float d = height || bmpData.Height; 
+				float e = left;   
+				float f; 
+			}
+			
+			matrix.f = this.pageHeight - (top||0) - matrix.d;
+			
+			dll.FPDFPageObj_SetMatrix(imageObj, matrix);
+			dll.FPDFPage_InsertObject(this.currentPage, imageObj);
 
-            // 5. 将图像对象插入到页面中
-            dll.FPDFPage_InsertObject(this.currentPage, imageObj);
+			if(!dll.FPDFPage_GenerateContent(this.currentPage)){
+				error("生成页面内容失败", 0);
+			}
 
-            // 6. 生成新的页面内容以使更改生效
-            if(!dll.FPDFPage_GenerateContent(this.currentPage)){
-                error("生成页面内容失败", 0);
-            }
+			ret = true;
+		}
+		catch(e){
+			dll.FPDFPageObj_Destroy(imageObj);
+		}
 
-            ret = true;
-        }
-        catch(e){
-            dll.FPDFPageObj_Destroy(imageObj); // 出错时清理 
-        }
-
-        if(fpdfBitmap) dll.FPDFBitmap_Destroy(fpdfBitmap);
-        bitmap.unlockMemory(bmpData); 
- 
- 		 if(gcBitmap) bitmap.dispose();
-        return ret;
-    }
+		if(fpdfBitmap) dll.FPDFBitmap_Destroy(fpdfBitmap);
+		bitmap.unlockMemory(bmpData); 
+	
+		if(gcBitmap) bitmap.dispose();
+		return ret;
+	}
 
 	destroy = function(){
 		if(this.currentPage){
@@ -207,8 +203,8 @@ namespace pdfium{
 	
 	..table.gc(self,function(){
 		if(self.initialized){
-			 dll.FPDF_DestroyLibrary();
-			 self.initialized = null;
+				dll.FPDF_DestroyLibrary();
+				self.initialized = null;
 		}
 	});
 	
@@ -272,7 +268,7 @@ namespace pdfium{
 			}
 			
 			if(index>owner.pageCount) index = owner.pageCount +1;
-			 
+				
 			owner.currentPage = dll.FPDFPage_New(owner.hPdfDoc,index-1
 				,..raw.double(width),..raw.double(height)); 
 			
@@ -348,16 +344,16 @@ namespace pdfium{
 		};
 		saveAsCopy = function(callback,fileVersion,flags){
 			var writer = { 
-  				int version = 1; 
-  				ptr onWrite = ..raw.tocdecl(callback,"int(ptr pWriter,ptr pData,INT size)",owner);
-  			};
-  			
-  			if(fileVersion){
-  				return !!dll.FPDF_SaveWithVersion(owner.hPdfDoc,writer,flags,fileVersion);
-  			}
-  			else {
-  				return !!dll.FPDF_SaveAsCopy(owner.hPdfDoc,writer,flags);
-  			}
+					int version = 1; 
+					ptr onWrite = ..raw.tocdecl(callback,"int(ptr pWriter,ptr pData,INT size)",owner);
+				};
+				
+				if(fileVersion){
+					return !!dll.FPDF_SaveWithVersion(owner.hPdfDoc,writer,flags,fileVersion);
+				}
+				else {
+					return !!dll.FPDF_SaveAsCopy(owner.hPdfDoc,writer,flags);
+				}
 		};
 		save = function(path,fileVersion,flags){
 			var file,err = ..io.open(path,"w+b");
