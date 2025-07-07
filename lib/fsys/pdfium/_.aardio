@@ -4,6 +4,7 @@ import gdi;
 import gdip.bitmap;
 
 var dll = ..raw.loadDll( ..io.appData("~\aardio\pdfium\pdfium1.0.dll",$"~\lib\fsys\pdfium\.dll\pdfium.dll"),,"cdecl" );
+::PDFium = dll;
 
 class pdfium{
 	ctor( pdfPath,password="" ){
@@ -162,7 +163,7 @@ class pdfium{
 		if(gcBitmap) bitmap.dispose();
 		return ret;
 	};
-	loadFont = function(fontPath, fontType, isCid){
+	loadFont = function(fontPath, fontType = 2/*_FPDF_FONT_TRUETYPE*/, isCid = true){
         if(!fontPath) error("必须提供字体文件路径", 2);
 
         var fontData = ..string.loadBuffer(fontPath);
@@ -173,6 +174,7 @@ class pdfium{
             if(!this.loadedFonts) this.loadedFonts = [];
             owner.loadedFonts[fontHandle] = fontHandle;
         }
+        
         return fontHandle;
     };
     insertText = function(text, x, y, color, fontSize, font){
@@ -324,6 +326,10 @@ class pdfium{
 
 namespace pdfium{
 	
+	/*
+	在 aardio 中如果不声明直接调用动态链接库（ DLL ）导出的原生 API 时，数值参数默认转换为 int 类型。
+	如果原生 API 的数值参数为 double,float 等非 int 类型，则建议使用 dll.api 先声明后调用。
+	*/
 	FPDFText_GetRect= dll.api("FPDFText_GetRect","bool(pointer text_page,int rect_index,double& left,double& top,double& right,double& bottom)");
 	FPDFText_GetBoundedText= dll.api("FPDFText_GetBoundedText","int(pointer text_page,double left,double top,double right,double bottom,pointer buffer,int buflen)");
 	FPDFPageObj_Transform = dll.api("FPDFPageObj_Transform","void(pointer,double,double,double,double,double,double)");
@@ -597,10 +603,16 @@ namespace pdfium{
 	} 
 }
 
-PDFium = pdfium;//@Deprecated
+self.PDFium = pdfium;//@Deprecated
 
 /**details(项目主页)
 https://github.com/xuncv/PDFium-aardio
+
+相关头文件：
+https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/
+https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_edit.h
+https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_doc.h
+https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdfview.h
 end details**/
 
 /**intellisense()
@@ -622,7 +634,7 @@ getMeta() = 获取pdf属性表
 extractText() = 提取当前页文本
 asBitmap() = 当前页转换为 gdip.bitmap 对象\n!gdipbitmap.
 insertBitmap(.(bitmap,left,top,width,height) = 插入图像到当前页面。\nbitmap 可指定图像文件数据或路径，也可指定 gdip.bitmap 对象。\n可选用参数 left, top, width, height 指定插入坐标与宽高。\n需要注意这里需要指定相对于页面左上角的坐标（PDFium 默认坐标原点为左下角）。
-loadFont(.(fontPath,fontType,isCid) = 加载自定义字体文件。\nfontPath 为字体文件路径。\nfontType 为 _FPDF_FONT_TRUETYPE 或 _FPDF_FONT_TYPE1。\nisCid 指定是否为 CID 字体。\n成功返回字体句柄，失败返回 null。返回的句柄在 pdfium 对象销毁时自动释放。
+loadFont(.(fontPath,fontType,isCid) = 加载嵌入字体文件（使用嵌入字体会增大 PDF 体积），建议指定 ttf 后缀的字体文件。\nfontPath 为字体文件路径。\n参数 fontType 默认为 `2/*_FPDF_FONT_TRUETYPE*/`，可指定为 `1/*_FPDF_FONT_TYPE1*/`。\n参数isCid 指定是否为 CID 字体（一般是中文字体），默认为 true 。\n成功返回字体句柄，失败返回 null。返回的句柄在 pdfium 对象销毁时自动释放。
 insertText(.(text,x,y,color,fontSize,font) = 在当前页插入文本。\ntext 为要插入的字符串。\nx, y 为左上角坐标。\nfontSize 为字号，默认为 12。\nfont 可以是 'Helvetica', 'Courier', 'Times-Roman' 等标准字体名，也可以是 loadFont 返回的字体句柄。\ncolor 为文本颜色，支持 0xAARRGGBB 格式。
 drawRect(.(x,y,width,height,strokeWidth,strokeColor,fillColor) = 在当前页绘制矩形。\nx, y 为左上角坐标。\nstrokeWidth 为边框宽度，strokeColor 为边框颜色，fillColor 为填充颜色。\n颜色支持 0xAARRGGBB 格式。
 drawLine(.(x1,y1,x2,y2,strokeWidth,strokeColor) = 在当前页绘制线条。\n(x1,y1) 为起点坐标，(x2,y2) 为终点坐标。\nstrokeWidth 为线条宽度，strokeColor 为线条颜色。\n颜色支持 0xAARRGGBB 格式。
@@ -649,3 +661,7 @@ _FPDFBitmap_BGR=@2/*_FPDFBitmap_BGR*/
 _FPDFBitmap_BGRx=@3/*_FPDFBitmap_BGRx*/
 _FPDFBitmap_BGRA=@4/*_FPDFBitmap_BGRA*/
 end intellisense**/
+
+/*****intellisense(::)
+::PDFium = fsys.pdfium 扩展库加载的 pdfium.dll 模块对象。\n!dllModule.
+end intellisense*****/
