@@ -1,5 +1,6 @@
 ﻿namespace fsys
 import util.metaProperty;
+import gdi;
 import gdip.bitmap;
 
 var dll = ..raw.loadDll( ..io.appData("~\aardio\pdfium\pdfium1.0.dll",$"~\lib\fsys\pdfium\.dll\pdfium.dll"),,"cdecl" );
@@ -94,7 +95,6 @@ class pdfium{
 		if(!bitmap) dll.FPDFBitmap_Destroy(bit)
 		return bitmap,err; 
 	}
-	
 	insertBitmap = function(bitmap, left, top, width, height){
 		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
 		
@@ -114,7 +114,7 @@ class pdfium{
 	
 		var imageObj = dll.FPDFPageObj_NewImageObjP(this.hPdfDoc);
 		if(!imageObj) {
-				if(gcBitmap) bitmap.dispose();
+			if(gcBitmap) bitmap.dispose();
 			return null, "创建 PDF 图像对象失败";
 		}
 
@@ -143,13 +143,14 @@ class pdfium{
 			matrix.f = this.pageHeight - (top||0) - matrix.d;
 			
 			dll.FPDFPageObj_SetMatrix(imageObj, matrix);
+			
+			//注意 FPDFPage_InsertObject 将会接管 imageObj，后面不要自己释放 imageObj
 			dll.FPDFPage_InsertObject(this.currentPage, imageObj);
 
-			if(!dll.FPDFPage_GenerateContent(this.currentPage)){
-				error("生成页面内容失败", 0);
-			}
-
-			ret = true;
+			//保存修改
+			if(dll.FPDFPage_GenerateContent(this.currentPage)){
+				ret = true;
+			}  
 		}
 		catch(e){
 			dll.FPDFPageObj_Destroy(imageObj);
@@ -160,14 +161,162 @@ class pdfium{
 	
 		if(gcBitmap) bitmap.dispose();
 		return ret;
-	}
+	};
+	loadFont = function(fontPath, fontType, isCid){
+        if(!fontPath) error("必须提供字体文件路径", 2);
+
+        var fontData = ..string.loadBuffer(fontPath);
+        if(!fontData) return null, "加载字体文件失败";
+
+        var fontHandle = dll.FPDFText_LoadFontP(owner.hPdfDoc, fontData, #fontData, fontType, isCid);
+        if(fontHandle){
+            if(!this.loadedFonts) this.loadedFonts = [];
+            owner.loadedFonts[fontHandle] = fontHandle;
+        }
+        return fontHandle;
+    };
+    insertText = function(text, x, y, color, fontSize, font){
+        if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+        if(!text) error("请指定文本参数");
+        if(color===null) error("请指定颜色参数");
+
+        fontSize = fontSize || 12;
+        font = font || "Helvetica";
+
+        var textObj;
+        if(type(font) == "string"){
+            textObj = FPDFPageObj_NewTextObj(this.hPdfDoc, font, fontSize);
+        }
+        elseif(type(font) == "pointer"){
+            textObj = FPDFPageObj_CreateTextObj(this.hPdfDoc, font, fontSize);
+        }
+        else {
+            error("字体参数必须是标准字体名或 loadFont 返回的字体句柄", 2);
+        }
+
+        if(!textObj) return null, "创建文本对象失败";
+
+        var ret;
+        try {
+            var r,g,b,a =  ..gdi.getRgba(color); 
+            dll.FPDFPageObj_SetFillColor(textObj, r, g, b, a);
+            
+            dll.FPDFTextObj_SetTextRenderMode(textObj, 0); // FPDF_TEXTRENDERMODE_FILL
+             
+            // API 尾标 W 指示将参数 text 转换为 UTF-16 编码。
+            if(!dll.FPDFText_SetTextW(textObj, text)){
+                error("设置文本内容失败", 0);
+            }
+
+            var y_pdf = this.pageHeight - y - fontSize;
+        	FPDFPageObj_Transform(textObj, 1, 0, 0, 1, x, y_pdf); 
+        	 
+            dll.FPDFPage_InsertObject(this.currentPage, textObj);  
+
+            if(dll.FPDFPage_GenerateContent(this.currentPage)){
+                ret = true;
+            }
+        }
+        catch(e){
+            dll.FPDFPageObj_Destroy(textObj);
+        }
+
+        return ret;
+    };
+    drawRect = function(x, y, width, height, strokeWidth, strokeColor, fillColor){
+        if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+
+        var y_pdf = this.pageHeight - y - height;
+        var pathObj = FPDFPageObj_CreateNewRect(x, y_pdf, width, height);
+        if(!pathObj) return null, "创建矩形对象失败";
+
+        var ret,err;
+        try {
+            var hasFill = (fillColor!==null);
+        	var hasStroke = (strokeWidth > 0) && (strokeColor!==null);
+
+
+            if(hasFill){
+            	var r,g,b,a =  ..gdi.getRgba(fillColor);
+            	dll.FPDFPageObj_SetFillColor(pathObj, r, g, b, a);	
+            }
+             
+            if(hasStroke){
+                r,g,b,a =  ..gdi.getRgba(strokeColor);
+                dll.FPDFPageObj_SetStrokeColor(pathObj, r, g, b, a);
+                
+                if(!FPDFPageObj_SetStrokeWidth(pathObj, strokeWidth)){
+                	error("设置线宽失败");
+                }
+            }
+
+            var fillMode = hasFill ? 2/*_FPDF_FILLMODE_WINDING*/ : 0/*_FPDF_FILLMODE_NONE*/;
+            dll.FPDFPath_SetDrawMode(pathObj, fillMode, hasStroke);
+
+            dll.FPDFPage_InsertObject(this.currentPage, pathObj);
+            
+            if(dll.FPDFPage_GenerateContent(this.currentPage)){
+                ret = true;
+            }
+
+        }
+        catch(e){
+            dll.FPDFPageObj_Destroy(pathObj);
+            err = e;
+        }
+
+        return ret,err;
+    };
+    drawLine = function(x1, y1, x2, y2, strokeWidth, strokeColor){
+        if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+        if(strokeColor===null) error("请指定颜色参数");
+
+        var y1_pdf = this.pageHeight - y1;
+        var y2_pdf = this.pageHeight - y2;
+
+        var pathObj = FPDFPageObj_CreateNewPath(x1, y1_pdf);
+        if(!pathObj) return null, "创建路径对象失败";
+
+        var ret,err;
+        try {
+            FPDFPath_LineTo(pathObj, x2, y2_pdf);
+
+            var r,g,b,a =  ..gdi.getRgba(strokeColor);
+            dll.FPDFPageObj_SetStrokeColor(pathObj, r, g, b, a);
+
+            if(!FPDFPageObj_SetStrokeWidth(pathObj, strokeWidth || 1)){
+            	error("设置线宽失败");
+            }
+
+            dll.FPDFPath_SetDrawMode(pathObj, 0/*_FPDF_FILLMODE_NONE*/, true);
+
+            dll.FPDFPage_InsertObject(this.currentPage, pathObj);
+
+            if(dll.FPDFPage_GenerateContent(this.currentPage)){
+                ret = true;
+            }
+        }
+        catch(e){
+            dll.FPDFPageObj_Destroy(pathObj);
+            err = e;
+        }
+
+        return ret,err;
+    }; 
+
 
 	destroy = function(){
 		if(this.currentPage){
 			dll.FPDF_ClosePage(this.currentPage);
 			this.currentPage = null
 		}
-		dll.FPDF_CloseDocument(this.hPdfDoc);
+		
+		for(k,font in this.loadedFonts){
+            dll.FPDFFont_Close(font);
+        }
+        this.loadedFonts = [];
+        
+		dll.FPDF_CloseDocument(this.hPdfDoc); 
 	}
 	
 	@_metaProperty;	
@@ -177,7 +326,14 @@ namespace pdfium{
 	
 	FPDFText_GetRect= dll.api("FPDFText_GetRect","bool(pointer text_page,int rect_index,double& left,double& top,double& right,double& bottom)");
 	FPDFText_GetBoundedText= dll.api("FPDFText_GetBoundedText","int(pointer text_page,double left,double top,double right,double bottom,pointer buffer,int buflen)");
-	
+	FPDFPageObj_Transform = dll.api("FPDFPageObj_Transform","void(pointer,double,double,double,double,double,double)");
+	FPDFPageObj_SetStrokeWidth = dll.api("FPDFPageObj_SetStrokeWidth","bool(pointer,float)");
+    FPDFPageObj_CreateNewRect = dll.api("FPDFPageObj_CreateNewRect","pointer(float x,float y,float w,float h)");
+    FPDFPageObj_CreateNewPath = dll.api("FPDFPageObj_CreateNewPath","pointer(float x,float y)");
+    FPDFPath_LineTo = dll.api("FPDFPath_LineTo","pointer(pointer path,float x,float y)");
+    FPDFPageObj_NewTextObj = dll.api("FPDFPageObj_NewTextObj","pointer(pointer document,string font,float fontSize)");
+ 	FPDFPageObj_CreateTextObj = dll.api("FPDFPageObj_CreateTextObj","pointer(pointer document,pointer font,float fontSize)");
+
 	init = function(cfg){
 		if(self.initialized) return;
 		
@@ -267,7 +423,11 @@ namespace pdfium{
 				owner.currentPage = null
 			}
 			
-			if(index>owner.pageCount) index = owner.pageCount +1;
+			if(index === null) index = owner.pageCount +1;
+			elseif(index>owner.pageCount) index = owner.pageCount +1;
+			
+		 	width = width || owner.pageWidth;
+    		height = height || owner.pageHeight;
 				
 			owner.currentPage = dll.FPDFPage_New(owner.hPdfDoc,index-1
 				,..raw.double(width),..raw.double(height)); 
@@ -461,7 +621,12 @@ extractBookmarks() = 提取目录,返回 fsys.pdfium.bookmark 对象
 getMeta() = 获取pdf属性表
 extractText() = 提取当前页文本
 asBitmap() = 当前页转换为 gdip.bitmap 对象\n!gdipbitmap.
-insertBitmap(.(bitmap, left, top, width, height) = 插入图像到当前页面。\nbitmap 可指定图像文件数据或路径，也可指定 gdip.bitmap 对象。\n可选用参数 left, top, width, height 指定插入坐标与宽高。\n需要注意这里需要指定相对于页面左上角的坐标（PDFium 默认坐标原点为左下角）。
+insertBitmap(.(bitmap,left,top,width,height) = 插入图像到当前页面。\nbitmap 可指定图像文件数据或路径，也可指定 gdip.bitmap 对象。\n可选用参数 left, top, width, height 指定插入坐标与宽高。\n需要注意这里需要指定相对于页面左上角的坐标（PDFium 默认坐标原点为左下角）。
+loadFont(.(fontPath,fontType,isCid) = 加载自定义字体文件。\nfontPath 为字体文件路径。\nfontType 为 _FPDF_FONT_TRUETYPE 或 _FPDF_FONT_TYPE1。\nisCid 指定是否为 CID 字体。\n成功返回字体句柄，失败返回 null。返回的句柄在 pdfium 对象销毁时自动释放。
+insertText(.(text,x,y,color,fontSize,font) = 在当前页插入文本。\ntext 为要插入的字符串。\nx, y 为左上角坐标。\nfontSize 为字号，默认为 12。\nfont 可以是 'Helvetica', 'Courier', 'Times-Roman' 等标准字体名，也可以是 loadFont 返回的字体句柄。\ncolor 为文本颜色，支持 0xAARRGGBB 格式。
+drawRect(.(x,y,width,height,strokeWidth,strokeColor,fillColor) = 在当前页绘制矩形。\nx, y 为左上角坐标。\nstrokeWidth 为边框宽度，strokeColor 为边框颜色，fillColor 为填充颜色。\n颜色支持 0xAARRGGBB 格式。
+drawLine(.(x1,y1,x2,y2,strokeWidth,strokeColor) = 在当前页绘制线条。\n(x1,y1) 为起点坐标，(x2,y2) 为终点坐标。\nstrokeWidth 为线条宽度，strokeColor 为线条颜色。\n颜色支持 0xAARRGGBB 格式。
+
 eachTextRect() = 遍历当前页文本块
 eachTextRect() = @for left,top,right,bottom,text in ??.eachTextRect(){
 	__/*遍历当前页文本区块。\nleft,top,right,bottom 分别为左上右下位置。\ntext 为文本*/
