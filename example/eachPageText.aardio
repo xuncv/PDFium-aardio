@@ -1,0 +1,14 @@
+import console;
+
+import fsys.pdfium; 
+
+//打开 PDF 文件
+var pdf = fsys.pdfium("/bookmarks/pdf/pdfium.pdf");
+
+//遍历 PDF 所有页面并获取文本，可选用参数 @1 指定开始页面，可选用参数 @2 指定结束页面
+for pageNum,textContent in pdf.eachPageText(){
+	//只有包含文本内容的 PDF 页才能提取到文本，有些 PDF 页只有图像而文本为空。
+	console.log(textContent)
+}
+
+console.pause();
