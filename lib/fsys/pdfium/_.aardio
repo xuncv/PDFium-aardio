@@ -3,7 +3,7 @@ import util.metaProperty;
 import gdi;
 import gdip.bitmap;
 
-var dll = ..raw.loadDll( ..io.appData("~\aardio\pdfium\pdfium1.0.dll",$"~\lib\fsys\pdfium\.dll\pdfium.dll"),,"cdecl" );
+var dll = ..raw.loadDll( ..io.appData("~\aardio\pdfium\pdfium.150.0.7869.0.dll",$"~\lib\fsys\pdfium\.dll\pdfium.dll"),,"cdecl" );
 ::PDFium = dll;
 
 class pdfium{
@@ -427,11 +427,11 @@ namespace pdfium{
 			if(!endIndex) endIndex = owner.pageCount;
 			else endIndex = ..math.min(endIndex,owner.pageCount);
 			
-			var pageNum = statIndex || 0;
+			var pageNum = statIndex || 1;
 			return function(){
 				if(pageNum < endIndex){
 					var textContent;
-					var page = dll.FPDF_LoadPageP(owner.hPdfDoc,pageNum);
+					var page = dll.FPDF_LoadPageP(owner.hPdfDoc,pageNum-1);
 					if(page){
 						
 						var textPage = dll.FPDFText_LoadPageP(page);
