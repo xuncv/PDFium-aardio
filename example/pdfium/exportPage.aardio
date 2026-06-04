@@ -1,0 +1,28 @@
+import console.int;
+import inet.http; // 支持直接打开网络 PDF
+import fsys.pdfium;
+
+// 此范例演示：将 PDF 页面以指定 DPI 导出为图片。
+var url = "https://www.orimi.com/pdf-test.pdf";
+console.showLoading("正在打开 PDF");
+
+var pdf,err = fsys.pdfium(url);
+if(!pdf){
+	console.error("打开 PDF 失败：",err || fsys.pdfium.lasterr());
+	console.pause();
+	return;
+}
+
+var imagePath = io.tmpname("pdf-page-", ".png");
+var ok,saveErr = pdf.exportPage(1,imagePath,150/*DPI*/);
+pdf.destroy();
+
+if(!ok){
+	console.error("导出失败：",saveErr);
+	console.pause();
+	return;
+}
+
+console.log("已导出第 1 页到：",imagePath);
+raw.execute(imagePath); // 用系统默认图片查看器打开
+console.pause();

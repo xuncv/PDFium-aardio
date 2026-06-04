@@ -1,0 +1,40 @@
+import console.int;
+import fsys.pdfium;
+
+// 此范例演示：创建 PDF、写入文字、提取文本、搜索、保存到文件或内存。
+var pdf,err = fsys.pdfium();
+if(!pdf){
+	console.error("创建 PDF 失败：",err || fsys.pdfium.lasterr());
+	console.pause();
+	return;
+}
+
+pdf.createPage(1,595,842); // A4 近似尺寸，单位为 point（1/72 英寸）
+pdf.insertText("fsys.pdfium create / text / search demo",50,80,0xFF000000,18);
+pdf.insertText("Autos can use fsys.pdfium to analyze PDF files.",50,120,0xFF0000CC,14);
+
+var text = pdf.extractText();
+console.log("当前页文本：\r\n",text);
+
+var results = pdf.search("fsys.pdfium");
+console.log("\r\n搜索 fsys.pdfium 命中：",#results);
+for(i,item in results){
+	console.log("#",i," 第",item.pageNum,"页，位置：",item.index,"，文本：",item.text);
+}
+
+var buffer = pdf.saveToBuffer();
+console.log("\r\n内存 PDF 大小：",#buffer," 字节");
+
+var pdfPath = io.fullpath("/createAndSearch.pdf");
+var ok,saveErr = pdf.save(pdfPath);
+pdf.destroy();
+
+if(ok){
+	console.log("已保存：",pdfPath);
+	raw.execute(pdfPath);
+}
+else {
+	console.error("保存失败：",saveErr);
+}
+
+console.pause();

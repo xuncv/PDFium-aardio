@@ -8,79 +8,24 @@ PDFium 是 Google 著名开源项目 Chromium 的一部分，也是福昕的技�
 
 在 aardio 中导入 fsys.pdfium(PDFium) 扩展库就可以开始使用了，aardio 官方扩展库已收录 fsys.pdfium，不再需要单独下载安装。
 
-载入并显示 PDF
+PDF 提取文本：
 
 ```javascript
-import win.ui;
-/*DSG{{*/
-var winform = win.form(text="PDF 简单绘图")
-winform.add(
-plus={cls="plus";left=11;top=8;right=742;bottom=453;db=1;dl=1;dr=1;dt=1;repeat="scale";z=1}
-)
-/*}}*/
-
-//打开 PDF
-import inet.http;
+import console;
+import inet.http;//导入 inet.http 则 fsys.pdfium 支持网络 PDF
 import fsys.pdfium;
-var pdf = fsys.pdfium("https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf")
 
-//显示 PDF，自动支持 plus 控件的缩放模式
-pdf.pageNum = 1;
-winform.plus.background = pdf.asBitmap();
+//打开 PDF 文件
+var pdf = fsys.pdfium("https://www.orimi.com/pdf-test.pdf")
 
-winform.show();
-win.loopMessage();
-
-```
-
-提取树形目录
-
-```javascript
-//加载目录
-var bm = pdf.extractBookmarks()
-mainForm.treeview.insertItem( bm.asTree() )
-
-//树视图改变当前节点触发此事件
-mainForm.treeview.onSelChanged = function(hItem,data,nmTreeView){
-	if(data){
-		pdf.pageNum = data.pageIndex;//设置当前页码，起始页码为 1
-		
-		//wb 为 web.view 对象
-		wb.go("/a.pdf#page="+data.pageIndex)  
-		mainForm.editPageNum.text = data.pageIndex; 
-	} 	
+//遍历 PDF 所有页面并获取文本，可选用参数 @1 指定开始页面，可选用参数 @2 指定结束页面
+for pageNum,textContent in pdf.eachPageText(){
+	//只有包含文本内容的 PDF 页才能提取到文本，有些 PDF 页只有图像而文本为空。
+	console.log(textContent)
 }
-```
 
-![](screenshots/screenshot.png)
+console.pause();
 
-提取某页文本
-
-```javascript
-pdf.pageNum = 8; //设置当前页码，起始页码为 1
-
-var text = pdf.extractText();`
-```
-
-遍历某页文本块,带坐标数据
-```javascript
-import console
-reader.pageNum = 8; //设置当前页码，起始页码为 1
-for left,top,right,bottom,text in reader.eachTextRect(){
-	console.log(left,top,right,bottom,text)
-}
-```
-
-合并 PDF
-```javascript
-import fsys.pdfium;
-var pdf = fsys.pdfium("/a.pdf");
-
-//导入另外一个 PDF，参数 @1 也可以是另外的 fsys.pdfium 对象。
-pdf.importPages("/b.pdf",,"1-7,6,9");//导入 1-7,6,9 页，省略页码参数则导入所有页面
-
-//保存 PDF
-pdf.save("/c.pdf");
 ```
 
 # 依赖项目:

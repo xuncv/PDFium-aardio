@@ -1,7 +1,18 @@
-﻿namespace fsys
-import util.metaProperty;
+/**
+fsys.pdfium
+
+版本号：2026.6.4.0
+发布日期：2026.6.4.0
+
+基于 PDFium 的 PDF 读取、渲染、文本提取与简单编辑库。
+**/
+
 import gdi;
 import gdip.bitmap;
+import string.builder;
+import util.metaProperty;
+
+namespace fsys
 
 var dllPath = ..io.appData("~\aardio\pdfium\pdfium.150.0.7869.0.dll",$"~\lib\fsys\pdfium\.dll\pdfium.dll");
 var dll = ..raw.loadDll(dllPath,,"cdecl" );
@@ -12,7 +23,7 @@ class pdfium{
 		init();
 		
 		if(!pdfPath){
-			this.hPdfDoc = dll.FPDF_CreateNewDocument();
+			this.hPdfDoc = dll.FPDF_CreateNewDocumentP();
 		}
 		elseif(type.isString(pdfPath) and ..string.startWith(pdfPath,"http",true) && ..inet[["http"]]){
 			var data,err = ..inet.http.get(pdfPath);
@@ -39,22 +50,33 @@ class pdfium{
 	};
 	
 	eachTextRect = function(){
+		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+		
 		var textPage = dll.FPDFText_LoadPageP(this.currentPage);
+		if(!textPage) return function(){ return null; };
+		
 		var textCountChars = dll.FPDFText_CountChars(textPage);
 		var rectCount = dll.FPDFText_CountRects(textPage,0,textCountChars)
 		var rectIndex = 0;
 		
 		return function(){
+			if(rectIndex >= rectCount){
+				if(textPage){
+					dll.FPDFText_ClosePage(textPage);
+					textPage = null;
+				}
+				return null;
+			}
+			
 			var err,left,top,right,bottom = FPDFText_GetRect(textPage,rectIndex,0,0,0,0)
+			rectIndex++
+			if(!err) return null;
 
 			var len = FPDFText_GetBoundedText(textPage,left,top,right,bottom,null,0)
-			var buffer = ..raw.buffer(len*2);
+			var buffer = ..raw.buffer((len+1)*2);
 			len = FPDFText_GetBoundedText(textPage,left,top,right,bottom,buffer,len);
 			
-			rectIndex++
-			if rectIndex > rectCount return null; 
-			
-			return round(left),round(top),round(right),round(bottom),..string.fromUtf16( buffer ); 
+			return round(left),round(top),round(right),round(bottom),..string.fromUtf16( buffer,,-1 ); 
 		}; 	
 	}
 
@@ -67,36 +89,104 @@ class pdfium{
 			var buffer = ..raw.buffer(len)
 			
 			len = dll.FPDF_GetMetaText(this.hPdfDoc,v,buffer,len)
-			meta[v] = ..string.fromUtf16( buffer )
+			meta[v] = ..string.fromUtf16( buffer,,-1 )
 		}
 		return meta
 	}
 	
-	extractText = function(){
-		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+	extractText = function(pageNum){
+		var page;
+		var isTempPage = false;
+		if(pageNum && pageNum != owner.pageNum){
+			if(pageNum < 1 || pageNum > owner.pageCount) return null, "页码超出范围";
+			page = dll.FPDF_LoadPageP(owner.hPdfDoc, pageNum - 1);
+			isTempPage = true;
+		}
+		else {
+			page = owner.currentPage;
+		}
 		
-		var textPage = dll.FPDFText_LoadPageP(this.currentPage);
+		if(!page) return null, "请先指定 pageNum 属性！";
+		
+		var textPage = dll.FPDFText_LoadPageP(page);
+		if(!textPage) {
+			if(isTempPage) dll.FPDF_ClosePage(page);
+			return null, lasterr() || "加载 PDF 文本页失败";
+		}
+		
 		var textCountChars = dll.FPDFText_CountChars(textPage);
-		var buffer = ..raw.buffer( textCountChars*2 );
+		var buffer = ..raw.buffer( (textCountChars+1)*2 );
 		var num = dll.FPDFText_GetText(textPage,0,textCountChars,buffer);
+		dll.FPDFText_ClosePage(textPage);
+		if(isTempPage) dll.FPDF_ClosePage(page);
 		
-		return ..string.fromUtf16( buffer );
+		return ..string.fromUtf16( buffer,,-1 );
 	}
 	
-	asBitmap = function(bgcolor){
-		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
+	asBitmap = function(scaleOrDpi, bgcolor, pageNum){
+		var scale = 1;
+		if(type(scaleOrDpi) == "number"){
+			if(scaleOrDpi > 10){
+				scale = scaleOrDpi / 72; // 转为缩放系数
+			}
+			else {
+				scale = scaleOrDpi;
+			}
+		}
+		elseif(type(scaleOrDpi) == "table" || type(scaleOrDpi) == "string"){
+			// 兼容原本的 bgcolor 传参
+			bgcolor = scaleOrDpi;
+			scale = 1;
+		}
 		
-		var bit = dll.FPDFBitmap_CreateP( owner.pageWidth,owner.pageHeight,0 )
-		dll.FPDFBitmap_FillRect(bit,0,0,owner.pageWidth,owner.pageHeight,bgcolor || 0xFFFFFFFF);
-		dll.FPDF_RenderPageBitmap(bit,this.currentPage,0,0,owner.pageWidth,owner.pageHeight,0,0x02 | 0x01);
+		// 确定要渲染的页面
+		var page;
+		var isTempPage = false;
+		var width, height;
 		
-		var buffer = dll.FPDFBitmap_GetBufferP(bit);
+		if(pageNum && pageNum != owner.pageNum){
+			if(pageNum < 1 || pageNum > owner.pageCount) return null, "页码超出范围";
+			page = dll.FPDF_LoadPageP(owner.hPdfDoc, pageNum - 1);
+			isTempPage = true;
+			
+			var w, h = owner.getPageSize(pageNum);
+			width = ..math.round(w * scale);
+			height = ..math.round(h * scale);
+		}
+		else {
+			page = owner.currentPage;
+			width = ..math.round(owner.pageWidth * scale);
+			height = ..math.round(owner.pageHeight * scale);
+		}
+		
+		if(!page) return null, "请先指定 pageNum 属性！";
+		
+		var bit = dll.FPDFBitmap_CreateP( width, height, 0 )
+		if(!bit) {
+			if(isTempPage) dll.FPDF_ClosePage(page);
+			return null, lasterr() || "创建 PDFium 位图失败";
+		}
+		
+		dll.FPDFBitmap_FillRect(bit, 0, 0, width, height, bgcolor || 0xFFFFFFFF);
+		dll.FPDF_RenderPageBitmap(bit, page, 0, 0, width, height, 0, 0x02 | 0x01);
+		
+		var scan0 = dll.FPDFBitmap_GetBufferP(bit);
 		var stride = dll.FPDFBitmap_GetStride(bit);
+
+		var bitmap,err = ..gdip.bitmap( width, height, 0x26200A/*_PixelFormat32bppARGB*/, scan0, stride )
+		if(bitmap){
+			var bitmapTemp = bitmap.deepClone();//必须使用深拷贝方式复制位图
+			bitmap.delete();//释放，避免继续引用 buffer
+			
+			bitmap = bitmapTemp;
+		}
 		
-		var bitmap,err = ..gdip.bitmap( owner.pageWidth,owner.pageHeight,0x26200A/*_PixelFormat32bppARGB*/,buffer,stride )
-		if(!bitmap) dll.FPDFBitmap_Destroy(bit)
+		dll.FPDFBitmap_Destroy(bit);
+		if(isTempPage) dll.FPDF_ClosePage(page);
+		
 		return bitmap,err; 
 	}
+	
 	insertBitmap = function(bitmap, left, top, width, height){
 		if(!this.currentPage) error("请先指定 pageNum 属性！",2);
 		
@@ -314,12 +404,17 @@ class pdfium{
 			this.currentPage = null
 		}
 		
-		for(k,font in this.loadedFonts){
-            dll.FPDFFont_Close(font);
-        }
-        this.loadedFonts = [];
+		if(this.loadedFonts){
+			for(k,font in this.loadedFonts){
+				dll.FPDFFont_Close(font);
+			}
+			this.loadedFonts = [];
+		}
         
-		dll.FPDF_CloseDocument(this.hPdfDoc); 
+		if(this.hPdfDoc){
+			dll.FPDF_CloseDocument(this.hPdfDoc); 
+			this.hPdfDoc = null;
+		}
 	}
 	
 	@_metaProperty;	
@@ -333,6 +428,16 @@ namespace pdfium{
 	*/
 	FPDFText_GetRect= dll.api("FPDFText_GetRect","bool(pointer text_page,int rect_index,double& left,double& top,double& right,double& bottom)");
 	FPDFText_GetBoundedText= dll.api("FPDFText_GetBoundedText","int(pointer text_page,double left,double top,double right,double bottom,pointer buffer,int buflen)");
+	FPDFText_FindStart = dll.api("FPDFText_FindStart","pointer(pointer text_page,ustring findwhat,INT flags,int start_index)");
+	FPDFText_FindNext = dll.api("FPDFText_FindNext","bool(pointer handle)");
+	FPDFText_FindPrev = dll.api("FPDFText_FindPrev","bool(pointer handle)");
+	FPDFText_GetSchResultIndex = dll.api("FPDFText_GetSchResultIndex","int(pointer handle)");
+	FPDFText_GetSchCount = dll.api("FPDFText_GetSchCount","int(pointer handle)");
+	FPDFText_FindClose = dll.api("FPDFText_FindClose","void(pointer handle)");
+	FPDF_GetPageSizeByIndex = dll.api("FPDF_GetPageSizeByIndex","bool(pointer document,int page_index,double& width,double& height)");
+	FPDFPage_GetRotation = dll.api("FPDFPage_GetRotation","int(pointer page)");
+	FPDFPage_SetRotation = dll.api("FPDFPage_SetRotation","void(pointer page,int rotate)");
+	FPDFPage_New = dll.api("FPDFPage_New","pointer(pointer document,int page_index,double width,double height)");
 	FPDFPageObj_Transform = dll.api("FPDFPageObj_Transform","void(pointer,double,double,double,double,double,double)");
 	FPDFPageObj_SetStrokeWidth = dll.api("FPDFPageObj_SetStrokeWidth","bool(pointer,float)");
     FPDFPageObj_CreateNewRect = dll.api("FPDFPageObj_CreateNewRect","pointer(float x,float y,float w,float h)");
@@ -445,48 +550,176 @@ namespace pdfium{
 					owner.currentPage = null
 				}
 				owner.currentPage = dll.FPDF_LoadPageP(owner.hPdfDoc,value-1);
+				if(!owner.currentPage) error(lasterr() || "打开 PDF 页面失败",2);
 				owner[["(pageNum)"]] = value;
 			}
 		};
-		eachPageText = function(statIndex,endIndex){ 
+		eachPageText = function(statIndex,endIndex){
 			if(!endIndex) endIndex = owner.pageCount;
 			else endIndex = ..math.min(endIndex,owner.pageCount);
 			
 			var pageNum = statIndex || 1;
 			return function(){
-				if(pageNum < endIndex){
-					var textContent;
-					var page = dll.FPDF_LoadPageP(owner.hPdfDoc,pageNum-1);
-					if(page){
-						
-						var textPage = dll.FPDFText_LoadPageP(page);
+				if(pageNum > endIndex) return null;
+				
+				var curPageNum = pageNum;
+				pageNum++;
+				
+				var textContent;
+				var page = dll.FPDF_LoadPageP(owner.hPdfDoc,curPageNum-1);
+				if(page){
+					var textPage = dll.FPDFText_LoadPageP(page);
+					if(textPage){
 						var textCountChars = dll.FPDFText_CountChars(textPage);
-						var buffer = ..raw.buffer( textCountChars*2 );
+						var buffer = ..raw.buffer( (textCountChars+1)*2 );
 						var num = dll.FPDFText_GetText(textPage,0,textCountChars,buffer);
-						
-						textContent = ..string.fromUtf16( buffer ); 
-						dll.FPDF_ClosePage(page);
-						
-						pageNum++;
-						return pageNum,textContent;
+						textContent = ..string.fromUtf16( buffer,,-1 );
+						dll.FPDFText_ClosePage(textPage);
 					}
+					dll.FPDF_ClosePage(page);
 				}
+				return curPageNum,textContent;
 			},owner;  
 		};
+		extractAllText = function(startPageNum,endPageNum,separator){
+			var texts = [];
+			for(pageNum,textContent in owner.eachPageText(startPageNum,endPageNum)){
+				..table.push(texts,textContent : "");
+			}
+			return ..string.join(texts,separator === null ? '\r\n' : separator);
+		};
+		search = function(findWhat, flags){
+			if(!findWhat) error("请指定要查找的文本",2);
+			var results = [];
+			
+			for(pageNum = 1; owner.pageCount){
+				var page = dll.FPDF_LoadPageP(owner.hPdfDoc, pageNum - 1);
+				if(page){
+					var textPage = dll.FPDFText_LoadPageP(page);
+					if(textPage){
+						var hFind = FPDFText_FindStart(textPage, findWhat, flags || 0, 0);
+						if(hFind){
+							while(FPDFText_FindNext(hFind)){
+								var index = FPDFText_GetSchResultIndex(hFind) + 1;
+								var count = FPDFText_GetSchCount(hFind);
+								
+								var buffer = ..raw.buffer((count + 1) * 2);
+								dll.FPDFText_GetText(textPage, index - 1, count, buffer);
+								var text = ..string.fromUtf16(buffer,,-1);
+								
+								..table.push(results, {
+									pageNum = pageNum;
+									index = index;
+									count = count;
+									text = text;
+								});
+							}
+							FPDFText_FindClose(hFind);
+						}
+						dll.FPDFText_ClosePage(textPage);
+					}
+					dll.FPDF_ClosePage(page);
+				}
+			}
+			return results;
+		};
+		exportPage = function(pageNum, path, dpi, bgcolor){
+			if(!pageNum) pageNum = owner.pageNum || 1;
+			if(pageNum < 1 || pageNum > owner.pageCount) return null, "页码超出范围";
+			if(!path) error("请指定保存的图片路径", 2);
+			
+			var bmp, err = owner.asBitmap(dpi, bgcolor, pageNum);
+			if(!bmp) return null, err;
+			
+			var ok, saveErr = bmp.save(path);
+			bmp.dispose();
+			
+			if(!ok) return null, saveErr || "保存图片失败";
+			return true;
+		};
+		getPageSize = function(pageNum){
+			pageNum = pageNum || owner.pageNum;
+			if(!pageNum || pageNum<1 || pageNum>owner.pageCount) return null,"页码超过 PDF 范围";
+			var ok,width,height = FPDF_GetPageSizeByIndex(owner.hPdfDoc,pageNum-1,0,0);
+			if(ok) return round(width),round(height);
+			return null,lasterr();
+		};
+		eachPageSize = function(startPageNum,endPageNum){
+			if(!endPageNum) endPageNum = owner.pageCount;
+			else endPageNum = ..math.min(endPageNum,owner.pageCount);
+			var pageNum = startPageNum || 1;
+			return function(){
+				if(pageNum > endPageNum) return null;
+				var curPageNum = pageNum;
+				pageNum++;
+				var width,height = owner.getPageSize(curPageNum);
+				return curPageNum,width,height;
+			},owner;
+		};
+		findText = function(findWhat,startIndex,flags){
+			if(!owner.currentPage) error("请先指定 pageNum 属性！",2);
+			if(!findWhat) error("请指定要查找的文本",2);
+			
+			var textPage = dll.FPDFText_LoadPageP(owner.currentPage);
+			if(!textPage) return null,lasterr() || "加载 PDF 文本页失败";
+			
+			var hFind = FPDFText_FindStart(textPage,findWhat,flags || 0,(startIndex || 1)-1);
+			if(!hFind){
+				dll.FPDFText_ClosePage(textPage);
+				return null,lasterr();
+			}
+			
+			var results = [];
+			while(FPDFText_FindNext(hFind)){
+				..table.push(results,{
+					index = FPDFText_GetSchResultIndex(hFind) + 1;
+					count = FPDFText_GetSchCount(hFind);
+				});
+			}
+			
+			FPDFText_FindClose(hFind);
+			dll.FPDFText_ClosePage(textPage);
+			return results;
+		};
+		selectText = function(startIndex,count){
+			if(!owner.currentPage) error("请先指定 pageNum 属性！",2);
+			startIndex = startIndex || 1;
+			count = count || 1;
+			
+			var textPage = dll.FPDFText_LoadPageP(owner.currentPage);
+			if(!textPage) return null,lasterr() || "加载 PDF 文本页失败";
+			
+			var buffer = ..raw.buffer((count+1)*2);
+			var len = dll.FPDFText_GetText(textPage,startIndex-1,count,buffer);
+			dll.FPDFText_ClosePage(textPage);
+			return ..string.fromUtf16(buffer,,-1);
+		};
+		pageRotation = {
+			_get = function(){
+				if(!owner.currentPage) return null;
+				return FPDFPage_GetRotation(owner.currentPage);
+			}
+			_set = function(value){
+				if(!owner.currentPage) error("请先指定 pageNum 属性！",2);
+				value = tonumber(value) || 0;
+				FPDFPage_SetRotation(owner.currentPage,value % 4);
+			}
+		};
+		
 		createPage = function(index,width,height){
+			var defaultWidth,defaultHeight = owner.getPageSize(owner.pageNum || 1);
 			if(owner.currentPage){
 				dll.FPDF_ClosePage(owner.currentPage);
 				owner.currentPage = null
 			}
 			
-			if(index === null) index = owner.pageCount +1;
-			elseif(index>owner.pageCount) index = owner.pageCount +1;
+			if(index === null) index = owner.pageCount + 1;
+			elseif(index > owner.pageCount) index = owner.pageCount + 1;
 			
-		 	width = width || owner.pageWidth;
-    		height = height || owner.pageHeight;
-				
-			owner.currentPage = dll.FPDFPage_New(owner.hPdfDoc,index-1
-				,..raw.double(width),..raw.double(height)); 
+			width = width || defaultWidth || 595;
+			height = height || defaultHeight || 842;
+			
+			owner.currentPage = FPDFPage_New(owner.hPdfDoc,index-1,width,height); 
 			
 			if(owner.currentPage){
 				owner[["(pageNum)"]] = index;
@@ -512,9 +745,9 @@ namespace pdfium{
 			if(!srcPdf[["hPdfDoc"]]) {
 				srcPdf = ..fsys.pdfium(srcPdf);
 				if(srcPdf){
-					owner.importPages(srcPdf,index,pageIndicesOrRange);
+					var ret = owner.importPages(srcPdf,index,pageIndicesOrRange);
 					srcPdf.destroy();
-					return;
+					return ret;
 				}
 				
 				error("参数 @1 必须指定 fsys.pdfium 对象",2);
@@ -537,14 +770,14 @@ namespace pdfium{
 			if(!srcPdf[["hPdfDoc"]]) {
 				srcPdf = ..fsys.pdfium(srcPdf);
 				if(srcPdf){
-					owner.copyViewerPreferences(srcPdf);
+					var ret = owner.copyViewerPreferences(srcPdf);
 					srcPdf.destroy();
-					return;
+					return ret;
 				}
 				
 				error("参数 @1 必须指定 fsys.pdfium 对象",2);
 			}
-			return !!dll.FPDF_CopyViewerPreferences(owner.hPdfDoc,src.hPdfDoc);
+			return !!dll.FPDF_CopyViewerPreferences(owner.hPdfDoc,srcPdf.hPdfDoc);
 		};
 		render = function(hdcOrGraphics,x,y,cx,cy,rotate,flags){
 			if(!owner.currentPage) error("请先指定 pageNum 属性！",2);
@@ -570,6 +803,15 @@ namespace pdfium{
 				else {
 					return !!dll.FPDF_SaveAsCopy(owner.hPdfDoc,writer,flags);
 				}
+		};
+		saveToBuffer = function(fileVersion,flags){
+			var sb = ..string.builder();
+			var ret = owner.saveAsCopy( function(pWriter,pData,size){
+				sb.append(pData,size);
+				return 1;
+			},fileVersion,flags);
+			if(ret) return sb.buffer();
+			return null,lasterr() || "保存 PDF 到内存失败";
 		};
 		save = function(path,fileVersion,flags){
 			var file,err = ..io.open(path,"w+b");
@@ -680,17 +922,27 @@ end intellisense**/
 
 /**intellisense(!fsysPdfium)
 destroy() = 释放对象
-extractBookmarks() = 提取目录,返回 fsys.pdfium.bookmark 对象。\n!fsysfsysPdfiumBookmark.
+extractBookmarks() = 提取目录,返回 fsys.pdfium.bookmark 对象。
+!fsysPdfiumBookmark.
 eachTextRect() = @for left,top,right,bottom,text in ??.eachTextRect(){
 	__/*遍历当前页文本区块。\nleft,top,right,bottom 分别为左上右下位置。\ntext 为文本*/
 }
 eachPageText(startPageNum,endPageNum) = @for pageNum,textContent in ??.eachPageText(){
 	__/*遍历所有页面文本。\n可选用 startPageNum,endPageNum 参数指定开始与结束页码。\npageNum 为当前页码，textContent 为当前页文本内容。\n需要注意不是所有 PDF 页面都提供文本，有些只能转为图像。*/
 }
- = function(statIndex,endIndex)
-getMeta() = 获取 PDF 元数据。\n返回包含 Title,Author,Subject,Keywords,Creator,Producer,CreationDate,ModDate 等字段的表对象。
-extractText(.(bgcolor) = 提取并返回当前页文本。\n可选用参数 @bgcolor 指定背景色（ 8888 ARGB 格式，0xAARRGGBB）.默认为 0xFFFFFFFF。
-asBitmap() = 当前页转换为 gdip.bitmap 对象\n!gdipbitmap.
+extractAllText(startPageNum,endPageNum,separator) = 提取多页文本并合并为字符串。\n可选指定起止页码与页面文本分隔符，默认使用回车换行。
+getPageSize(pageNum) = 获取指定页码的页面宽高，返回 width,height。\n页码自 1 开始，省略页码则使用当前页。
+eachPageSize(startPageNum,endPageNum) = @for pageNum,width,height in ??.eachPageSize(){
+	__/*遍历页面宽高。*/
+}
+findText(findWhat,startIndex,flags) = 在当前页查找文本，返回包含 index,count 字段的数组。\nindex 为字符索引，起始值为 1；count 为匹配字符数。\nflags 可指定 PDFium 搜索标志。
+selectText(startIndex,count) = 提取当前页指定字符范围内的文本。\nstartIndex 起始值为 1，count 为字符数。
+pageRotation = 读取或设置当前页旋转方向。\n0 不旋转，1 顺时针 90 度，2 旋转 180 度，3 逆时针 90 度。
+getMeta() = 获取 PDF 元数据。\n返回包含 Title,Author,Subject,Keywords,Creator,Producer,CreationDate,ModDate 等字段 of type table 的对象。
+extractText(.(pageNum) = 提取并返回指定页的文本内容。如果不指定 pageNum 参数，默认使用当前活动页。
+search(.(findWhat,flags) = 跨页全局检索文本，成功返回包含命中的 pageNum,index,count,text 字段的数组对象。
+asBitmap(.(scaleOrDpi,bgcolor,pageNum) = 当前页转换为 gdip.bitmap 对象。\n@scaleOrDpi 指定缩放比例（如 1.5）或渲染 DPI（如 150），默认 1。\n@bgcolor 指定背景色，默认为白色。\n@pageNum 指定页码，省略则转换为当前活动页。\n!gdipbitmap.
+exportPage(.(pageNum,path,dpi,bgcolor) = 渲染并导出指定页面为图像文件。成功返回 true，失败返回 null,错误信息。\n@pageNum 指定页码。\n@path 指定保存路径，支持.png, .jpg等。\n@dpi 指定缩放倍数或渲染 DPI（如 150）。\n@bgcolor 指定背景色。
 insertBitmap(.(bitmap,left,top,width,height) = 插入图像到当前页面。\nbitmap 可指定图像文件数据或路径，也可指定 gdip.bitmap 对象。\n可选用参数 left, top, width, height 指定插入坐标与宽高。\n需要注意这里需要指定相对于页面左上角的坐标（PDFium 默认坐标原点为左下角）。
 loadFont(.(fontPath,fontType,isCid) = 加载嵌入字体文件（使用嵌入字体会增大 PDF 体积），建议指定 ttf 后缀的字体文件。\nfontPath 为字体文件路径。\n参数 fontType 默认为 `2/*_FPDF_FONT_TRUETYPE*/`，可指定为 `1/*_FPDF_FONT_TYPE1*/`。\n参数isCid 指定是否为 CID 字体（一般是中文字体），默认为 true 。\n成功返回字体句柄，失败返回 null。返回的句柄在 pdfium 对象销毁时自动释放。
 insertText(.(text,x,y,color,fontSize,font) = 在当前页插入文本。\ntext 为要插入的字符串。\nx, y 为左上角坐标。\nfontSize 为字号，默认为 12。\nfont 可以是 'Helvetica', 'Courier', 'Times-Roman' 等标准字体名，也可以是 loadFont 返回的字体句柄。\ncolor 为文本颜色，支持 0xAARRGGBB 格式。
@@ -707,11 +959,12 @@ copyViewerPreferences(srcPdf) = 导入 PDF 设置。\nsrcPdf 指定要导入的 
 render( = 窗口绘图
 render(.(hdcOrGraphics,x,y,cx,cy,rotate,flags) = 参数 @hdcOrGraphics 可指定 hdc 或 graphics 对象，\n@x,@y 指定 x,y 坐标，@cx 指定宽，@cy 指定高。\n@rotate 为 1 顺时针转 90 度，设为 2 转 180 度，设为 3 为逆时针转 90 度\n@rotate 与 @flags 一般不必指定
 saveAsCopy(callback,fileVersion,flags) = @.saveAsCopy( function(pWriter,pData,size){\n	__/*保存 PDF 回调函数，其他为可选调用参数（不用管）。\n回调参数 pData 为要写入的内存指针，回调参数 size 为待写入长度。\n保存成功请返回非零数值，出错返回 0*/\n}) 
+saveToBuffer(fileVersion,flags) = 保存 PDF 到内存并返回 buffer。\n可选用 fileVersion 指定 PDF 文件版本，例如 15 表示 1.5。
 save( = 保存 PDF 文件
 save(.(path,fileVersion,flags) = 保存 PDF 到文件，成功返回 true。\n@path 指定文件路径。\n可选用 @fileVersion 指定文件版本，15 表示版本 1.5。\n@flags 为可选参数，一般不用指定，用法请参考 PDFium 文档
 end intellisense**/
 
-/*****intellisense(!fsysfsysPdfiumBookmark)
+/*****intellisense(!fsysPdfiumBookmark)
 asTree() = 返回书签树状数据表，返回对象可以用作 treeview 控件 insertItem 方法的参数。
 children() = 返回子节点数组，纯数组对象。
 title = 书签标题

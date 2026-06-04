@@ -1,0 +1,40 @@
+import console.int;
+import inet.http; // 支持直接打开网络 PDF
+import fsys.pdfium;
+
+// 此范例演示：元信息、页面尺寸、全文提取、跨页搜索。
+var url = "https://www.orimi.com/pdf-test.pdf";
+console.showLoading("正在打开 PDF");
+
+var pdf,err = fsys.pdfium(url);
+if(!pdf){
+	console.error("打开 PDF 失败：",err || fsys.pdfium.lasterr());
+	console.pause();
+	return;
+}
+
+console.log("PDF：",url);
+console.log("页数：",pdf.pageCount);
+
+console.log("\r\n元信息：");
+console.dump(pdf.getMeta());
+
+console.log("\r\n页面尺寸：");
+for(pageNum,width,height in pdf.eachPageSize()){
+	console.log("第",pageNum,"页：",width," x ",height," pt");
+}
+
+// 提取前 3 页文本，separator 可自定义页面之间的分隔符。
+var endPage = math.min(pdf.pageCount,3);
+var text = pdf.extractAllText(1,endPage,'\r\n---------- 分页 ----------\r\n');
+console.log("\r\n前 ",endPage," 页文本：\r\n",text);
+
+// 新增的 search 方法可跨页查找关键字。
+var results = pdf.search("PDF");
+console.log("\r\n搜索 PDF 命中：",#results);
+for(i,item in results){
+	console.log("#",i," 第",item.pageNum,"页，字符位置：",item.index,"，字数：",item.count,"，文本：",item.text);
+}
+
+pdf.destroy();
+console.pause();

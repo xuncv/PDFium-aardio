@@ -1,0 +1,6 @@
+PDF 转文本=pdf2text.aardio
+创建 PDF=createAndSearch.aardio
+搜索 PDF=textAndSearch.aardio
+显示 PDF=render.aardio
+合并 PDF=importPages.aardio
+导出图像=exportPage.aardio

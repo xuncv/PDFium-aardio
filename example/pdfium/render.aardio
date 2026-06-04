@@ -2,14 +2,15 @@ import win.ui;
 /*DSG{{*/
 var winform = win.form(text="PDF 简单绘图";right=1083;bottom=737)
 winform.add(
-plus={cls="plus";left=325;top=8;right=1073;bottom=726;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;repeat="scale";z=2};
-treeview={cls="treeview";left=12;top=5;right=315;bottom=725;asel=false;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;z=1}
+plus={cls="plus";left=325;top=8;right=1073;bottom=726;bgcolor=0xFFFFFF;db=1;dl=1;dr=1;dt=1;repeat="scale";z=2};
+treeview={cls="treeview";left=12;top=5;right=315;bottom=725;bgcolor=0xFFFFFF;db=1;dl=1;dt=1;edge=1;z=1}
 )
 /*}}*/
 
 //打开 PDF
 import fsys.pdfium; 
-var pdf = fsys.pdfium("/bookmarks/pdf/pdfium.pdf");
+import inet.http;//导入 inet.http 支持网络 PDF
+var pdf = fsys.pdfium("https://www.orimi.com/pdf-test.pdf")
 
 //显示首页
 pdf.pageNum = 1;
