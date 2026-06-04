@@ -3,7 +3,8 @@ import util.metaProperty;
 import gdi;
 import gdip.bitmap;
 
-var dll = ..raw.loadDll( ..io.appData("~\aardio\pdfium\pdfium.150.0.7869.0.dll",$"~\lib\fsys\pdfium\.dll\pdfium.dll"),,"cdecl" );
+var dllPath = ..io.appData("~\aardio\pdfium\pdfium.150.0.7869.0.dll",$"~\lib\fsys\pdfium\.dll\pdfium.dll");
+var dll = ..raw.loadDll(dllPath,,"cdecl" );
 ::PDFium = dll;
 
 class pdfium{
@@ -340,35 +341,59 @@ namespace pdfium{
     FPDFPageObj_NewTextObj = dll.api("FPDFPageObj_NewTextObj","pointer(pointer document,string font,float fontSize)");
  	FPDFPageObj_CreateTextObj = dll.api("FPDFPageObj_CreateTextObj","pointer(pointer document,pointer font,float fontSize)");
 
-	init = function(cfg){
-		if(self.initialized) return;
-		
-		self.initialized = true;
-		
-		cfg = ..table.assign({
-			int version = 2;
-			ptr userFontPaths;
-			ptr isolate;
-			INT v8EmbedderSlot;
-			pointer platform;
-			INT rendererType;
-		},cfg);
-		
-		if(type(cfg.userFontPaths)==type.table){
-			self.userFontPaths = cfg.userFontPaths;
-			self.userFontPathsPtr = ..raw.buffer({ptr items[]=cfg.userFontPaths});
-			cfg.userFontPaths = self.userFontPathsPtr;
-		}
 
-		dll.FPDF_InitLibraryWithConfig(cfg);
+	init = function(cfg){
+		if(..thread.get("$fsys.pdfium.initialized$")) return null,"每个进程 PDFium 组件 只能初始化一次，重复初始化将被忽略！";
+		
+		/*
+		PDFium 在整个进程中只能初始化与释放一次。
+		即便如此，PDFium 也不是线程安全的，因此应避免多线程并发调用 PDFium。
+		*/
+		..thread.call( 
+			function(dllPath,cfg){
+				/*
+				在 aardio 中 如果类似 PDFium 这样只支持进程级别初始化与释放的 DLL 组件，
+				应通过 thread.call 在共享线程中初始化与释放。 
+				*/
+				if(! ::PDFium){
+					
+					cfg = ..table.assign({
+						int version = 2;
+						ptr userFontPaths;
+						ptr isolate;
+						INT v8EmbedderSlot;
+						pointer platform;
+						INT rendererType;
+					},cfg);
+					
+					::PDFiumUserData = {};
+					
+					if(type(cfg.userFontPaths)==type.table){
+						
+						//防止字符串被回收
+						::PDFiumUserData.fontPaths = cfg.userFontPaths;
+						
+						//防止 buffer 被回收
+						::PDFiumUserData.fontPathsBuffer = ..raw.buffer({ptr items[]=cfg.userFontPaths});  
+						cfg.userFontPaths = ::PDFiumUserData.fontPathsBuffer;
+					}
+			
+					::PDFium = ..raw.loadDll(dllPath,,"cdecl");
+					::PDFium.FPDF_InitLibraryWithConfig(cfg);
+					
+					/*
+					共享线程的生命周期大于任何其他线程（包括主线程）。
+					因此可以在其他线程结束后安全调用 FPDF_DestroyLibrary 。
+					*/
+					..table.gc(::PDFiumUserData,function(){
+						::PDFium.FPDF_DestroyLibrary();
+					});
+				}
+			},,dllPath,cfg);
+		 
+		..thread.set("$fsys.pdfium.initialized$",true)
+		return true;  
 	}
-	
-	..table.gc(self,function(){
-		if(self.initialized){
-				dll.FPDF_DestroyLibrary();
-				self.initialized = null;
-		}
-	});
 	
 	lasterr = function(){
 		var msg = {  
