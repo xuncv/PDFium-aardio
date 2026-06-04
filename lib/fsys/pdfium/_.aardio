@@ -421,11 +421,7 @@ class pdfium{
 }
 
 namespace pdfium{
-	
-	/*
-	在 aardio 中如果不声明直接调用动态链接库（ DLL ）导出的原生 API 时，数值参数默认转换为 int 类型。
-	如果原生 API 的数值参数为 double,float 等非 int 类型，则建议使用 dll.api 先声明后调用。
-	*/
+
 	FPDFText_GetRect= dll.api("FPDFText_GetRect","bool(pointer text_page,int rect_index,double& left,double& top,double& right,double& bottom)");
 	FPDFText_GetBoundedText= dll.api("FPDFText_GetBoundedText","int(pointer text_page,double left,double top,double right,double bottom,pointer buffer,int buflen)");
 	FPDFText_FindStart = dll.api("FPDFText_FindStart","pointer(pointer text_page,ustring findwhat,INT flags,int start_index)");
@@ -899,14 +895,26 @@ namespace pdfium{
 
 self.PDFium = pdfium;//@Deprecated
 
-/**details(项目主页)
+/**details(说明)
+
+# 关于线程安全
+
+注意 PDFium 本身不是线程安全的。
+虽然可以在 aardio 线程里使用 fsys.pdfium，
+
+但应当避免多线程同时操作 PDF。
+如果能确定同一时刻只有一个线程使用 fsys.pdfium 则没有问题，
+否则应当用 thread.lock 加锁以避免并发访问 pdfium 接口。
+
+# 顶目主页
 https://github.com/xuncv/PDFium-aardio
 
-相关头文件：
+# 相关头文件：
 https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/
 https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_edit.h
 https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_doc.h
 https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdfview.h
+
 end details**/
 
 /**intellisense()
